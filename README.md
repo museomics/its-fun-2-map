@@ -1,6 +1,12 @@
 # its-fun-2-map
 A pipeline for processing fungal genome skims from museum specimens - includes quality control, mapping, assembly, BLAST taxonomic assignment, and validation.
 
+# TO DO
+- FINISH SUMMARY_COMPILER.PY LOGIC AND SEQUENCE SELECTION UPDATES
+- FINALISE RUN_PIPELINE.SH AND ADD TO REPO
+- FINALISE FLOW-CHART
+- 
+
 ## Contents
 1. [Dependencies](#Dependencies)
 2. [Process](#Process)
