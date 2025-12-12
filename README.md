@@ -4,10 +4,11 @@ A pipeline for processing fungal genome skims from museum specimens - includes q
   Version: 1.0.0
 
 ## Contents
-1. .
-2. .
-3. .
-4. .
+1. [Dependencies](#Dependencies)
+2. [Process](#Process)
+3. [Output Directory Structure](#Output-Directory-Structure)
+4. [Configuration](#Configuration)
+5. [Authorship](#Authors)
 
 ## Dependencies
 - Python 3.11+
@@ -159,9 +160,7 @@ output_base/
 
 
 ## Configuration
-
 Key parameters can be adjusted in the pipeline script:
-
 - `MIN_LENGTH`: Minimum sequence length for filtering (default: 100 bp)
 - `MIN_PIDENT`: Minimum percent identity (default: 85%)
 - `EVALUE_CUTOFF`: BLAST e-value threshold (default: 1e-5)
