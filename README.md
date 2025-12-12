@@ -4,9 +4,10 @@ A pipeline for processing fungal genome skims from museum specimens - includes q
 ## Contents
 1. [Dependencies](#Dependencies)
 2. [Process](#Process)
-3. [Output Directory Structure](#Output-Directory-Structure)
-4. [Configuration](#Configuration)
-5. [Authorship](#Authors)
+3. [Workflow](#workflow)
+4. [Output Directory Structure](#Output-Directory-Structure)
+5. [Configuration](#Configuration)
+6. [Authorship](#Authors)
 
 ## Dependencies
 - Python 3.11+
@@ -137,6 +138,8 @@ Compiles comprehensive summary statistics across all pipeline steps
   - BLAST validation results (ITS1 and ITS2)
   - Extraction success rates
 
+## Workflow
+<img width="1278" height="1222" alt="image" src="https://github.com/user-attachments/assets/44ada96d-73f3-4545-8290-14239e7d2b3e" />
 
 ## Output Directory Structure
 ```
