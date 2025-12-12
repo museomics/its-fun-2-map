@@ -1,7 +1,5 @@
 # its-fun-2-map
 A pipeline for processing fungal genome skims from museum specimens - includes quality control, mapping, assembly, BLAST taxonomic assignment, and validation.
-  Authors: M. Kamouyiaros & D. Parsons (NHMUK)
-  Version: 1.0.0
 
 ## Contents
 1. [Dependencies](#Dependencies)
