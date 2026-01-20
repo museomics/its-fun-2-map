@@ -8,7 +8,6 @@ A pipeline for processing fungal genome skims from museum specimens — includes
 3. [Workflow](#workflow)
 4. [Output Directory Structure](#output-directory-structure)
 5. [Configuration](#configuration)
-6. [Usage Examples](#usage-examples)
 7. [Authors](#authors)
 
 ## Dependencies
