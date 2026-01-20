@@ -513,12 +513,15 @@ output_base/
 
 ### Tracking Sheet Format
 The pipeline accepts CSV or XLSX tracking sheets with the following columns:
+
 **Required columns:**
 - Sample ID column (configurable via `--column_name` or `--id_header`)
 - Taxid column (for UNITEd step, configurable via `--taxid_header`)
+
 **Optional columns (for fastp_module.py):**
 - `forward` / `fwd` — path to forward reads
 - `reverse` / `rev` — path to reverse reads
+
 **For taxonomy validation (blast parsers):**
 - `Kingdom`, `Phylum`, `Class`, `Order`, `Family`, `Genus`, `Species` — taxonomic hierarchy columns
 
