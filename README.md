@@ -60,12 +60,11 @@ Raw Reads → QC → Reference Retrieval → Read Mapping → Assembly → BLAST
 
 ---
 
-### Step 1: Quality Control (`fastp_module.py`)
+
+## Step 1: Quality Control (`fastp_module.py`)
 
 Quality control processing of raw paired-end reads using fastp with a two-stage approach.
 
-### Step 1: Quality Control
-Quality control processing of raw PE reads using fastp
 - **Input:** Raw paired-end sequencing reads
 - **Output:**
   -  `{sample}_trimmed_1.fq`, `{sample}_trimmed_2.fq` — trimmed paired reads
@@ -82,7 +81,8 @@ Quality control processing of raw PE reads using fastp
 
 ---
 
-### Step 2: Pseudo-Reference Sequence Retrieval (`UNITEd.py`)
+
+## Step 2: Pseudo-Reference Sequence Retrieval (`UNITEd.py`)
 
 Retrieves taxonomically relevant reference sequences from the UNITE database using NCBI taxonomy matching.
 
@@ -114,7 +114,8 @@ Retrieves taxonomically relevant reference sequences from the UNITE database usi
 
 ---
 
-### Step 3: Read Mapping & Baiting
+
+## Step 3: Read Mapping & Baiting
 
 Maps quality-filtered reads to retrieved reference sequences using BWA-MEM to enrich for target ITS regions.
 
@@ -132,7 +133,7 @@ Maps quality-filtered reads to retrieved reference sequences using BWA-MEM to en
 
 
 
-### Step 4: Contig Assembly
+## Step 4: Contig Assembly
 Assembles mapped reads into contigs using SPAdes
 - **Input:** 
   - Mapped reads from Step 3
@@ -142,12 +143,18 @@ Assembles mapped reads into contigs using SPAdes
   - Generates assembly summary statistics
 ---
 
+
+
+
 ### Step 5: BLASTn - Round 1 (General Database)
 Searches assembled contigs against the [general UNITE database](https://unite.ut.ee/repository.php#panel5a) for initial taxonomic identification.
 - **Input:** Assembled contigs from Step 4
 - **Output:** Initial BLAST hits against comprehensive fungal database
 - **Database:** UNITE general release (sh_general_release_dynamic)
 ---
+
+
+
 
 ### Step 6: BLASTn Round 1 Parsing & Taxonomic Validation
 Parses BLAST round 1 output and validates taxonomic assignments against expected taxonomy
