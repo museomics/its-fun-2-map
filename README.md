@@ -36,7 +36,7 @@ A pipeline for processing fungal genome skims from museum specimens — includes
 - pgzip (`pip install pgzip`)
 
 ### R packages
-- (jsonlite)[https://cran.r-project.org/web/packages/jsonlite/index.html] 
+- [jsonlite](https://cran.r-project.org/web/packages/jsonlite/index.html)
 
 ### Custom tool packages (included in repository)
  - its_fun_tools
