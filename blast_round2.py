@@ -11,8 +11,6 @@ import sys
 from datetime import datetime
 
 from its_fun_tools import load_name_ids, cleanup_temp_dir, blast_task
-
-sys.path.append('/home/mkamouyi/scratch/private/defra-fungi/PRJEB81712')
 from metahist_tools import xlsx2csv, setup_logging
 
 
@@ -42,8 +40,7 @@ def run_seqkit_and_blast(tracking_sheet, column_name,query_dir, blast_dir, datab
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         log_file = f'blast2_log_{timestamp}.log'
     
-    log_dir_path = os.path.join(output_dir, "logs")
-    logger = setup_logging(log_dir=log_dir_path, log_file=log_file)
+    logger = setup_logging(log_file=log_file)
 
     if makeblastdb:
         logger.info(f"[INFO] Creating BLAST DB for {database_file}")
