@@ -44,10 +44,10 @@ A pipeline for processing fungal genome skims from museum specimens — includes
 
 ### Databases
 - BLASTn databases:
- - [UNITE Full "UNITE+INSD" database](https://unite.ut.ee/repository.php#panel6a) — for reference sequence retrieval
- - [UNITE General Release (sh_general_release_dynamic)](https://unite.ut.ee/repository.php#panel5a) — for BLAST Round 1
- - [UCHIME ITS1 reference dataset](https://unite.ut.ee/repository.php#panel7a) — for BLAST Round 2b
- - [UCHIME ITS2 reference dataset](https://unite.ut.ee/repository.php#panel7a) — for BLAST Round 2a
+  - [UNITE Full "UNITE+INSD" database](https://unite.ut.ee/repository.php#panel6a) — for reference sequence retrieval
+  - [UNITE General Release (sh_general_release_dynamic)](https://unite.ut.ee/repository.php#panel5a) — for BLAST Round 1
+  - [UCHIME ITS1 reference dataset](https://unite.ut.ee/repository.php#panel7a) — for BLAST Round 2b
+  - [UCHIME ITS2 reference dataset](https://unite.ut.ee/repository.php#panel7a) — for BLAST Round 2a
 
 
 ## Pipeline Overview
@@ -66,12 +66,12 @@ Quality control processing of raw paired-end reads using fastp with a two-stage 
 Quality control processing of raw PE reads using fastp
 - **Input:** Raw paired-end sequencing reads
 - **Output:**
- -  `{sample}_trimmed_1.fq`, `{sample}_trimmed_2.fq` — trimmed paired reads
- - `{sample}_merged.fq` — merged overlapping reads
- - `{sample}_unmerged_1.fq`, `{sample}_unmerged_2.fq` — reads that couldn't be merged
- - `{sample}_trim.json`, `{sample}_merge.json` — QC metrics
- - `{sample}_overlaps.html` — overlap distribution visualisation
- - `fastp_summary.csv` — aggregated summary statistics
+  -  `{sample}_trimmed_1.fq`, `{sample}_trimmed_2.fq` — trimmed paired reads
+  - `{sample}_merged.fq` — merged overlapping reads
+  - `{sample}_unmerged_1.fq`, `{sample}_unmerged_2.fq` — reads that couldn't be merged
+  - `{sample}_trim.json`, `{sample}_merge.json` — QC metrics
+  - `{sample}_overlaps.html` — overlap distribution visualisation
+  - `fastp_summary.csv` — aggregated summary statistics
 - **Features:**
   - Adapter trimming and filtering (auto-detection for PE reads)
   - Quality filtering (Q30 threshold)
@@ -97,8 +97,8 @@ Retrieves taxonomically relevant reference sequences from the UNITE database usi
 
 - **Input:** Tracking sheet with specimen taxonomy
 - **Output:**
- - `{sample_id}_seed.fasta` — reference sequences for each specimen
- - Optional summary CSV with retrieval statistics
+  - `{sample_id}_seed.fasta` — reference sequences for each specimen
+  - Summary CSV with retrieval statistics
 - **Database:** [UNITE public (Full "UNITE+INSD") database](https://unite.ut.ee/repository.php#panel6a)
 
 **Parameters:**
