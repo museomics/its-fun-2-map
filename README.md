@@ -58,6 +58,8 @@ The pipeline processes raw paired-end sequencing reads from fungal museum specim
 Raw Reads → QC → Reference Retrieval → Read Mapping → Assembly → BLAST Validation → ITS Extraction
 ```
 
+---
+
 ### Step 1: Quality Control (`fastp_module.py`)
 
 Quality control processing of raw paired-end reads using fastp with a two-stage approach.
@@ -91,9 +93,9 @@ Retrieves taxonomically relevant reference sequences from the UNITE database usi
 4. Supports fallback to higher taxonomic ranks if matches not found
 
 **Key Features:**
-- **Diversity mode:** Distributes sequences across child taxa, prioritising target species matches (up to 25% of requested sequences)
-- **Traverse mode:** Searches up the taxonomic hierarchy to collect target number of sequences
-- **Flexible matching:** Case-insensitive matching with normalisation for species name variations
+ - **Diversity mode:** Distributes sequences across child taxa, prioritising target species matches (up to 25% of requested sequences)
+ - **Traverse mode:** Searches up the taxonomic hierarchy to collect target number of sequences
+ - **Flexible matching:** Case-insensitive matching with normalisation for species name variations
 
 - **Input:** Tracking sheet with specimen taxonomy
 - **Output:**
@@ -112,22 +114,23 @@ Retrieves taxonomically relevant reference sequences from the UNITE database usi
 
 ---
 
-
-
-
-
-
-
 ### Step 3: Read Mapping & Baiting
-Maps quality-filtered reads to retrieved reference sequences to enrich for target regions using bwa-mem
-- **Input:** 
-  - Quality-filtered reads from Step 1
-  - Reference sequences from Step 2
-- **Output:** Mapped reads enriched for ITS regions
-- **Aligner:** BWA-MEM
-- **Features:**
-  - Outputs read mapping summary statistics
+
+Maps quality-filtered reads to retrieved reference sequences using BWA-MEM to enrich for target ITS regions.
+
+**Input:**
+- Quality-filtered reads from Step 1
+- Reference sequences from Step 2
+
+**Output:**
+- Mapped reads enriched for ITS regions
+- Read mapping summary statistics
+
+**Aligner:** BWA-MEM
+
 ---
+
+
 
 ### Step 4: Contig Assembly
 Assembles mapped reads into contigs using SPAdes
