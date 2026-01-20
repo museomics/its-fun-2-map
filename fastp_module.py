@@ -11,9 +11,11 @@ from pathlib import Path
 import pandas as pd
 from datetime import datetime
 import pathlib
+from rpy2.robjects import r
+from rpy2.robjects.conversion import localconverter
+from rpy2.robjects import pandas2ri, default_converter
 
 from metahist_tools import clean_and_tar, run_command, xlsx2csv, setup_logging
-# add get_read_ids2 to metahist_tools later
 
 def run_fastp_trim(sample_ids, r1_path, r2_path, output_dir, extra_args=None):
     """Run initial fastp trimming and filtering on paired-end reads."""
@@ -88,33 +90,29 @@ def run_fastp_overlap_plot(sample_ids, r1_path, r2_path, output_dir):
 
 def run_fastp_json_summary(
     json_dir,
-    r_script,
-    logger,
-    output_file="combined_fastp_json_out.csv"
+    outdir,
+    logger
 ):
     """Run the R fastp JSON parser on all JSON files in a directory."""
 
     json_dir = Path(json_dir)
-    r_script = Path(r_script)
+    r_script = Path('parse_fastp_json.R')
 
     # Confirm script exists
     if not r_script.exists():
-        logger.error(f"R script not found: {r_script}")
-        raise FileNotFoundError(f"R script not found: {r_script}")
+        logger.error("R script not found: %s", r_script)
+        raise FileNotFoundError("R script not found: %s", r_script)
 
-    # Collect input JSONs
-    json_files = sorted(json_dir.glob("*_trim.json"))
-    if not json_files:
-        logger.error(f"No JSON files found in: {json_dir}")
-        raise RuntimeError(f"No JSON files found in: {json_dir}")
+    logger.info(f"Running fastp JSON parser")
 
-    cmd = ["Rscript", str(r_script)] + [str(f) for f in json_files]
+    # Assess for which sequences/contigs can be taken forward for submission
+    r['source']('parse_fastp_json.R')
+    json2csv = r['json2csv']
 
-    logger.info(f"Running fastp JSON parser: {' '.join(cmd)}")
+    with localconverter(default_converter + pandas2ri.converter):
+        result = json2csv(str(json_dir), str(outdir))
 
-    subprocess.run(cmd, check=True)
-
-    logger.info(f"Combined JSON output written to: {output_file}")
+    logger.info("Combined JSON output written to: %s", outdir)
 
 
 
@@ -242,15 +240,11 @@ def main(args):
     # Set up
     os.makedirs(args.output_dir, exist_ok=True)
     
-    # Create logs directory inside output_dir instead of current directory
-    log_dir = os.path.join(args.output_dir, "logs")
-    os.makedirs(log_dir, exist_ok=True)
-
     if args.log_file is None:
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         args.log_file = f'fastp_log_{timestamp}.log'
     
-    logger = setup_logging(log_dir=log_dir, log_file=args.log_file)
+    logger = setup_logging(log_file=args.log_file)
 
     jobs = []
     paired_files = {}
@@ -391,14 +385,15 @@ def main(args):
     pattern = os.path.join(args.output_dir, "*_trim.json")
     json_paths = glob.glob(pattern, recursive=False)
     if not json_paths:
-        raise FileNotFoundError(f"No *_trim.json files found under {args.output_dir}")
-    run_fastp_json_summary(
-        os.path.dirname(json_paths[0]),
-        r_script="/mnt/shared/scratch/museomix/its-fun-2-map/parse_fastp_json.R",
-        logger=logger,
-        output_file=os.path.join(args.output_dir, "combined_fastp_json_out.csv")
-    )
-    
+        raise FileNotFoundError("No *_trim.json files found under %s", args.output_dir)
+    else: 
+        run_fastp_json_summary(
+            json_dir=args.output_dir,
+            outdir=args.output_dir,
+            logger=logger
+        )    
+
+
     # Remove tmp directory if it exists and finish
     tmp_dir = os.path.join(args.output_dir, "tmp")
     if os.path.exists(tmp_dir):
