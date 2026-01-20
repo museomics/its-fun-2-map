@@ -5,15 +5,13 @@ A pipeline for processing fungal genome skims from museum specimens — includes
 ## Contents
 1. [Dependencies](#dependencies)
 2. [Pipeline Overview](#pipeline-overview)
-3. [Detailed Process](#detailed-process)
-4. [Workflow](#workflow)
-5. [Output Directory Structure](#output-directory-structure)
-6. [Configuration](#configuration)
-7. [Usage Examples](#usage-examples)
-8. [Authors](#authors)
+3. [Workflow](#workflow)
+4. [Output Directory Structure](#output-directory-structure)
+5. [Configuration](#configuration)
+6. [Usage Examples](#usage-examples)
+7. [Authors](#authors)
 
 ## Dependencies
-
 ### Languages
 - r-base (4.3.0 (2023-04-21 ucrt) -- "Already Tomorrow" +) 
 - python 3.11+
@@ -49,9 +47,13 @@ A pipeline for processing fungal genome skims from museum specimens — includes
   - [UCHIME ITS1 reference dataset](https://unite.ut.ee/repository.php#panel7a) — for BLAST Round 2b
   - [UCHIME ITS2 reference dataset](https://unite.ut.ee/repository.php#panel7a) — for BLAST Round 2a
 
+### Installing dependencies
+All dependencies are included in  `its-2-map-fun.yaml`. A conda environment can be created from this YAML using the following command after [conda](https://www.anaconda.com/docs/getting-started/miniconda/install#quickstart-install-instructions) is installed:
+```
+conda env create -f its-fun-2-map.yaml
+```
 
 ## Pipeline Overview
-
 The pipeline processes raw paired-end sequencing reads from fungal museum specimens through quality control, reference-guided read enrichment, assembly, and multi-round BLAST validation to extract and validate ITS barcode sequences.
 
 ```
@@ -81,9 +83,7 @@ Quality control processing of raw paired-end reads using fastp with a two-stage 
 
 ---
 
-
 ## Step 2: Pseudo-Reference Sequence Retrieval (`UNITEd.py`)
-
 Retrieves taxonomically relevant reference sequences from the UNITE database using NCBI taxonomy matching.
 
 **Process:**
@@ -114,60 +114,132 @@ Retrieves taxonomically relevant reference sequences from the UNITE database usi
 
 ---
 
+## Step 3: Read Mapping & Baiting (`mapping_module.py`)
+Maps quality-filtered reads to retrieved reference sequences using BWA to enrich for target ITS regions. Supports both modern DNA (BWA-MEM) and ancient/historical DNA (BWA-ALN) alignment strategies.
 
-## Step 3: Read Mapping & Baiting
+**Alignment Algorithms:**
+| Algorithm | Use Case | Parameters |
+|-----------|----------|------------|
+| `bwa-mem` | Modern/historical DNA | Default BWA-MEM settings with `-M` flag |
+| `bwa-aln` | Ancient/historical DNA | `-l 16500 -n 0.01 -o 2` (Green et al. 2010) |
 
-Maps quality-filtered reads to retrieved reference sequences using BWA-MEM to enrich for target ITS regions.
+**Process:**
+1. Automatically indexes reference FASTA files if not already indexed
+2. Maps merged reads (single-end mode)
+3. Maps unmerged read pairs (paired-end mode)
+4. Extracts mapped reads to FASTQ format
+5. Repairs paired-end read files to ensure synchronisation
+6. Generates mapping statistics
 
 **Input:**
-- Quality-filtered reads from Step 1
-- Reference sequences from Step 2
+  - Quality-filtered FASTQ files from Step 1 (`*_merged.fq`, `*_unmerged_1.fq`, `*_unmerged_2.fq`)
+  - Per-sample reference FASTA files from Step 2 (`*_seed.fasta`)
 
 **Output:**
-- Mapped reads enriched for ITS regions
-- Read mapping summary statistics
-
-**Aligner:** BWA-MEM
+  - `{sample}_mapped.fastq` — mapped merged reads
+  - `{sample}_mapped_unmerged_1.fastq`, `{sample}_mapped_unmerged_2.fastq` — mapped paired reads (repaired)
+  - `{sample}_mapped_flagstats.txt` — alignment statistics for merged reads
+  - `{sample}_unmerged_1_flagstats.txt`, `{sample}_unmerged_2_flagstats.txt` — alignment statistics for paired reads
+  - `mapping_summary.csv` — aggregated mapping metrics for all samples
 
 ---
 
+## Step 4: Contig Assembly (`assembly_module.py`)
+Assembles mapped reads into contigs using SPAdes with a multi-stage fallback strategy to maximise assembly success.
 
+**Assembly Strategy:**
+| Stage | Method | K-mer Sizes | Description |
+|-------|--------|-------------|-------------|
+| Initial | Single-reads (i.e. merged) | 21,33,55 | Uses mapped merged reads only |
+| Fallback 1 | Single-reads (i.e. merged) | 21 | Retries with minimal k-mer if initial fails |
+| Fallback 2 | Merged + Unmerged PE | 21 | Uses all available reads if Fallback 1 fails |
 
-## Step 4: Contig Assembly
-Assembles mapped reads into contigs using SPAdes
-- **Input:** 
-  - Mapped reads from Step 3
-  - Unmerged reads from Step 1
-- **Output:** Assembled contigs
-- **Features:**
-  - Generates assembly summary statistics
+**Process:**
+1. Attempts assembly with merged reads using default k-mer sizes
+2. If assembly fails or produces no valid scaffolds, retries with k=21 only
+3. If still unsuccessful, includes unmerged paired reads in the assembly
+4. Calculates assembly metrics including N50, scaffold counts, and lengths
+
+**Input:**
+  - Mapped merged reads from Step 3 (`*_mapped.fastq`)
+  - Original unmerged reads from Step 1 (`*_unmerged_1.fq`, `*_unmerged_2.fq`)
+
+**Output:**
+- `{sample}.spades.out/` — SPAdes output directory containing:
+  - `scaffolds.fasta` — assembled scaffolds
+  - Assembly graphs and logs
+- `assembly_summary.csv` — metrics for all samples including:
+  - Assembly method used (INITIAL/FALLBACK1/FALLBACK2)
+  - Number of scaffolds
+  - Scaffold lengths
+  - Mean scaffold length
+  - N50 value
+ 
 ---
 
+## Step 5: BLASTn — Round 1 (General Database) (`blast_pipe.py`)
+Searches assembled scaffolds against the general UNITE database for initial taxonomic identification.
 
+**Process:**
+1. Optionally creates BLAST database from reference FASTA
+2. Locates `scaffolds.fasta` files for each sample in assembly directories
+3. Runs BLASTn searches in parallel
+4. Outputs results in tabular format (outfmt 6)
 
+**Input:**
+- Assembled scaffolds from Step 4 (`*.spades.out/scaffolds.fasta`)
+- UNITE general release database
+- Tracking sheet with sample IDs
 
-### Step 5: BLASTn - Round 1 (General Database)
-Searches assembled contigs against the [general UNITE database](https://unite.ut.ee/repository.php#panel5a) for initial taxonomic identification.
-- **Input:** Assembled contigs from Step 4
-- **Output:** Initial BLAST hits against comprehensive fungal database
-- **Database:** UNITE general release (sh_general_release_dynamic)
+**Output:**
+- `{sample}_blast.tsv` — BLAST results in tabular format with columns:
+  - qseqid, sseqid, pident, length, mismatch, gapopen, qstart, qend, sstart, send, evalue, bitscore
+
+**Database:** UNITE general release (sh_general_release_dynamic)
+
 ---
 
+## Step 6: BLASTn Round 1 Parsing & Taxonomic Validation (`blast_round1_parser.py`)
+Parses BLAST Round 1 output and validates taxonomic assignments against expected taxonomy with cascading taxonomic rank matching.
 
+**Taxonomic Validation Strategy:**
+The parser attempts to match BLAST hits against expected taxonomy using a cascading approach:
+1. **Species-level match** — checks if hits match expected species
+2. **Genus-level match** — if no species match, checks genus
+3. **Family-level match** — if no genus match, checks family
+4. If no matches at any level, the sample is marked as FAIL
 
+**Filtering Criteria:**
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `--min_len` | 100 bp | Minimum alignment length |
+| `--min_pident` | 85% | Minimum percent identity |
+| `--evalue_cutoff` | 1e-5 | Maximum e-value threshold |
 
-### Step 6: BLASTn Round 1 Parsing & Taxonomic Validation
-Parses BLAST round 1 output and validates taxonomic assignments against expected taxonomy
+**Validation Outcomes:**
+- **PASS**: Exactly one contig matches expected taxonomy after filtering
+- **FAIL**: Zero contigs match, or multiple contigs remain after filtering
 
-- **Input:** BLAST results from Step 5
-- **Output:** Filtered and validated BLAST hits
-- **Filters:**
-  - Minimum sequence length: 100 bp
-  - Minimum percent identity: 85%
-  - E-value cutoff: 1e-5
-- **Features:**
-  - Generates BLAST outcome summary
+**Input:**
+- BLAST TSV files from Step 5
+- Taxonomy CSV with expected taxonomic assignments (must contain ID column and taxonomic hierarchy: Kingdom, Phylum, Class, Order, Family, Genus, Species)
+- Assembly directory for contig extraction
+
+**Output:**
+- `blast_validation_summary.csv` — comprehensive validation results including:
+  - `ID` — sample identifier
+  - `blast_round1_found_taxon` — taxonomic level where match was found
+  - `blast_round1_expected_taxonomy` — full expected taxonomy string
+  - `blast_round1_n_contigs_in` — total contigs in assembly
+  - `blast_round1_n_contigs_hits` — contigs matching expected taxonomy
+  - `blast_round1_contigs` — contig IDs that matched
+  - `blast_round1_hit_taxonomy` — taxonomy of best BLAST hit
+  - `blast_round1_hit_coords` — alignment coordinates
+  - `blast_round1_correct_taxonomy` — PASS/FAIL status
+- `filtered_{sample}_blast.tsv` — filtered BLAST results for passing samples
+- `{sample}_parsed_contig.fasta` — extracted contig sequences for passing samples
 ---
+
 
 ### Step 7: BLASTn - Round 2 (ITS2-Specific)
 Searches contigs against [UCHIME ITS2 reference database](https://unite.ut.ee/repository.php#panel7a) for region-specific validation
