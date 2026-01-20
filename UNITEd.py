@@ -2,18 +2,17 @@
 """
 UNITE to NCBI taxonomy matcher & sequence retriever
 
-This script replaces go_fetch.py functionality by:
-1. Parsing UNITE FASTA files to extract taxonomy information
-2. Getting NCBI lineage information for input taxids
-3. Matching NCBI taxonomy against UNITE taxonomy with fallback strategy
-4. Extracting the longest corresponding sequence for each taxon
-5. Creating output files compatible with skim2ribo pipeline
+This script:
+1. Parsing UNITE to extract taxonomy and NCBI lineage information for input taxids
+2. Matching NCBI taxonomy against UNITE taxonomy with fallback strategy
+3. Extracting the corresponding sequence for each taxon based on user parameters( --all, --number, --tax_rank, --traverse, --diversity) 
+4. Outputs FASTA files of reference UNITE sequences per sample in the input tracking sheet
 
-Usage:
+Basic usage:
     python UNITEd.py --tracking_sheet samples.csv --unite_db unite.fasta --output output_dir --email your@email.com --api your_api_key
     
 Required Arguments:
---tracking_sheet: CSV file with ID and taxid columns (see CSV Format section below)
+--tracking_sheet: CSV file with minimum 2 columns: unique IDs and valid taxonimic IDs. See help for --id_header and --taxid_header for more detailed information"
 --unite_db: Local UNITE FASTA database file
 --output: Output directory for results
 --email: Email address (required by NCBI Entrez API)
@@ -26,11 +25,9 @@ Optional Arguments:
 --traverse RANK: Traverse up to specified rank if '--number N' cannot be found at the specified '--tax_rank [rank]' (requires both --tax_rank and --number)
 --diversity: Distribute sequences across child taxa, prioritising target species matches first (requires --number and --tax_rank)
 --summary_csv FILENAME: Generate detailed CSV summary with specified filename (placed in output directory)
+--id_header: Optional argument to specify column in input --tracking_sheet that refers to unique sample ID
+--taxid_header: Optional argument to specify column in input --tracking_sheet that refers to valid taxonomic IDs
 --version: Show version information
-
-Input CSV Format: 
-ID Column (sample identifiers) accepts any of: id, ID, Id, sample_id, sample_ID, Sample_ID, SampleID, sample, Sample
-Taxid Column (NCBI taxonomy IDs) accepts any of: taxid, taxID, TaxID, TAXID, tax_id, Tax_ID, TAX_ID, taxonomy_id, ncbi_taxid, NCBI_TaxID
 
 Output: 
 Creates files named {sample_id}_seed.fasta in the specified output directory using a flat directory structure.
@@ -69,16 +66,16 @@ Example usage:
     python unite_fetch.py --tracking_sheet samples.csv --unite_db unite_db.fasta --output results --email your@email.com --api your_api_key
 
     # Use a custom ID column name:
-    python unite_fetch.py --tracking_sheet samples.csv --unite_db unite_db.fasta --output results --email your@email.com --id-header "MyCustomID"
+    python UNITEd.py --tracking_sheet samples.csv --unite_db unite_db.fasta --output results --email your@email.com --id-header "MyCustomID"
 
     # Get 20 sequences distributed across species within a genus:
-    python unite_fetch.py --tracking_sheet samples.csv --unite_db unite_db.fasta --output results --email your@email.com --api your_api_key --tax_rank genus --number 20 --diversity
+    python UNITEd.py --tracking_sheet samples.csv --unite_db unite_db.fasta --output results --email your@email.com --api your_api_key --tax_rank genus --number 20 --diversity
 
     # Get 20 sequences with diversity, traverse up to family if insufficient child taxa:
-    python unite_fetch.py --tracking_sheet samples.csv --unite_db unite_db.fasta --output results --email your@email.com --api your_api_key --tax_rank genus --number 20 --diversity --traverse family
+    python UNITEd.py --tracking_sheet samples.csv --unite_db unite_db.fasta --output results --email your@email.com --api your_api_key --tax_rank genus --number 20 --diversity --traverse family
 
     # Get 20 sequences starting at genus, traverse up to order if needed (no diversity):
-    python unite_fetch.py --tracking_sheet samples.csv --unite_db unite_db.fasta --output results --email your@email.com --api your_api_key --tax_rank genus --number 20 --traverse order
+    python UNITEd.py --tracking_sheet samples.csv --unite_db unite_db.fasta --output results --email your@email.com --api your_api_key --tax_rank genus --number 20 --traverse order
 
 Diversity functionality:
     --diversity: When used with --tax_rank and --number, distributes sequences across child taxa.
@@ -95,7 +92,7 @@ Diversity functionality:
     )
     
     parser.add_argument("--tracking_sheet", required=True, 
-                        help="CSV file with 'ID' and 'taxid' columns")
+                        help="CSV file with 'ID' and 'taxid' columns. Specifically named columns can be set using parameters --id_header and --taxid_header")
     parser.add_argument("--unite_db", required=True, 
                         help="UNITE FASTA file with taxonomy information")
     parser.add_argument("--output", required=True, 
@@ -103,7 +100,7 @@ Diversity functionality:
     parser.add_argument("--email", required=True, 
                         help="Email address for NCBI Entrez API")
     parser.add_argument("--api", default="None", 
-                        help="NCBI API key (optional)")
+                        help="(Optional) NCBI API key")
     parser.add_argument("--all", action="store_true", 
                         help="Retrieve ALL sequences for each match instead of just the longest (requires more memory)")
     parser.add_argument("--number", type=int, 
@@ -120,11 +117,17 @@ Diversity functionality:
                         help="When used with --tax_rank and --number, distribute sequences across child taxa "
                              "instead of taking longest sequences from parent taxon. Prioritises target species matches first "
                              "(up to 25%% of --number), then distributes remaining across other child taxa")
+    parser.add_argument("--id_header", 
+                        help="(Optional) Specify the exact column name to use for sample IDs in the input CSV"
+                        "If not specified, default searches are for columns named: 'id', 'ID', 'Id', 'sample_id',"
+                        "'sample_ID', 'Sample_ID', 'SampleID', 'sample', or 'Sample'")
+    parser.add_argument("--taxid_header", 
+                        help = "(Optional) Specify the exact column name to use for taxonomic IDs in the input CSV"
+                        "If not specified, default searches are for columns named: 'taxid', 'taxID', 'TaxID',"
+                        "'TAXID', 'tax_id', 'Tax_ID', 'TAX_ID', 'taxonomy_id', 'ncbi_taxid', or 'NCBI_TaxID'")
     parser.add_argument("--summary_csv", 
                         help="Generate detailed CSV summary with specified filename (will be placed in output directory)")
-    parser.add_argument("--id-header", 
-                        help="Specify the exact column name to use for sample IDs in the input CSV")
-    parser.add_argument("--version", action="version", version="1.2.0")
+    parser.add_argument("--version", action="version", version="1.3.0")
     parser.add_argument("--log_file", help="Log file path; if not provided, a timestamped `UNITEd_log` file will be created")
 
     return parser
@@ -982,81 +985,116 @@ def write_output_fasta(sequence_info, matched_rank, sample_id, taxid, output_fil
         logger.info(f"Added aggregated data to summary for sample {sample_id}")
 
 
-def normalise_csv_headers(fieldnames, logger, id_header=None):
+def normalise_csv_headers(fieldnames, logger, id_header=None, taxid_header=None):
     """
     Create a mapping from normalised headers to actual headers in the CSV.
     Returns a dictionary mapping expected column names to actual column names.
     """
-    
-    # Define acceptable variations for each required column
-    id_variations = ['id', 'ID', 'Id', 'sample_id', 'sample_ID', 'Sample_ID', 'SampleID', 'sample', 'Sample']
-    taxid_variations = ['taxid', 'taxID', 'TaxID', 'TAXID', 'tax_id', 'Tax_ID', 'TAX_ID', 'taxonomy_id', 'ncbi_taxid', 'NCBI_TaxID']
-    
-    # Find ID column - prioritise user-specified column
+
+    id_variations = [
+        'id', 'ID', 'Id',
+        'sample_id', 'sample_ID', 'Sample_ID',
+        'SampleID', 'sample', 'Sample'
+    ]
+
+    taxid_variations = [
+        'taxid', 'taxID', 'TaxID', 'TAXID',
+        'tax_id', 'Tax_ID', 'TAX_ID',
+        'taxonomy_id', 'ncbi_taxid', 'NCBI_TaxID'
+    ]
+
     id_column = None
-    if id_header is not None:
+    taxid_column = None
+
+    # Resolve ID column
+    if id_header:
         if id_header in fieldnames:
             id_column = id_header
         else:
-            logger.warning(f"Specified ID column '{id_header}' not found in CSV. Will try standard variations.")
-    
-    # If no user-specified column or it wasn't found, try standard variations
+            logger.warning(
+                "Specified ID column '%s' not found in CSV. Trying standard variations.",
+                id_header
+            )
+
     if id_column is None:
         for variation in id_variations:
             if variation in fieldnames:
                 id_column = variation
                 break
-    
-    # Find taxid column
-    taxid_column = None
-    for variation in taxid_variations:
-        if variation in fieldnames:
-            taxid_column = variation
-            break
-    
+
+    if id_column is None:
+        raise ValueError(
+            f"Could not find an ID column in CSV. Tried: {id_variations}"
+        )
+
+    # Resolve taxid column
+    if taxid_header:
+        if taxid_header in fieldnames:
+            taxid_column = taxid_header
+        else:
+            logger.warning(
+                "Specified taxid column '%s' not found in CSV. Trying standard variations.",
+                taxid_header
+            )
+
+    if taxid_column is None:
+        for variation in taxid_variations:
+            if variation in fieldnames:
+                taxid_column = variation
+                break
+
+    if taxid_column is None:
+        raise ValueError(
+            f"Could not find a taxid column in CSV. Tried: {taxid_variations}"
+        )
+
     return {
         'ID': id_column,
         'taxid': taxid_column
     }
 
 
-def validate_input_files(csv_file, fasta_file, logger, id_header=None):
+def validate_input_files(csv_file, fasta_file, logger, id_header=None, taxid_header=None):
     """
     Validate that input files exist and have required format.
     """
-    # Check CSV file
+
+    # Check CSV file exists
     if not os.path.exists(csv_file):
         logger.error(f"Input CSV file does not exist: {csv_file}")
         sys.exit(1)
-    
+
     try:
         with open(csv_file, 'r') as f:
             reader = csv.DictReader(f)
-            header_mapping = normalise_csv_headers(reader.fieldnames,logger, id_header, )
-            
-            if header_mapping['ID'] is None:
-                logger.error(f"CSV file must contain an ID column. Found columns: {list(reader.fieldnames)}")
-                if id_header:
-                    logger.error(f"Specified ID column '{id_header}' was not found in the CSV.")
-                logger.error(f"Acceptable ID column names: id, ID, Id, sample_id, sample_ID, Sample_ID, SampleID, sample, Sample")
-                sys.exit(1)
-            
-            if header_mapping['taxid'] is None:
-                logger.error(f"CSV file must contain a taxid column. Found columns: {list(reader.fieldnames)}")
-                logger.error(f"Acceptable taxid column names: taxid, taxID, TaxID, TAXID, tax_id, Tax_ID, TAX_ID, taxonomy_id, ncbi_taxid, NCBI_TaxID")
-                sys.exit(1)
-            
-            logger.info(f"Found ID column: '{header_mapping['ID']}', taxid column: '{header_mapping['taxid']}'")
-            
+
+            header_mapping = normalise_csv_headers(
+                reader.fieldnames,
+                logger,
+                id_header,
+                taxid_header
+            )
+
+            logger.info(
+                "Found ID column: '%s', taxid column: '%s'",
+                header_mapping['ID'],
+                header_mapping['taxid']
+            )
+
+    except ValueError as e:
+        # Raised by normalise_csv_headers
+        logger.error(str(e))
+        sys.exit(1)
+
     except Exception as e:
         logger.error(f"Error reading CSV file: {str(e)}")
         sys.exit(1)
-    
-    # Check FASTA file
+
+    # Check FASTA file exists
     if not os.path.exists(fasta_file):
         logger.error(f"UNITE FASTA file does not exist: {fasta_file}")
         sys.exit(1)
-    
+
     logger.info("Input file validation passed")
     return header_mapping
 
@@ -1122,8 +1160,7 @@ def main():
         args.log_file = f'UNITEd_log_{timestamp}.log'
     
     # Set up logging    
-    log_dir_path = os.path.join(args.output, "logs")
-    logger = setup_logging(log_dir=log_dir_path, log_file=args.log_file)
+    logger = setup_logging(log_file=args.log_file)
   
     # Validate argument combinations
     if args.all and args.number is not None:
@@ -1188,7 +1225,7 @@ def main():
         logger.warning("WARNING: Sequence collection mode enabled. This will use more memory for large UNITE databases.")
     
     # Validate input files and get header mapping
-    header_mapping = validate_input_files(args.tracking_sheet, args.unite_db, logger, args.id_header)
+    header_mapping = validate_input_files(args.tracking_sheet, args.unite_db, logger, args.id_header, args.taxid_header)
     
     # Parse UNITE FASTA and build taxonomy index
     try:
