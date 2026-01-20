@@ -38,21 +38,6 @@ ID,Accession,taxid,forward,reverse,Kingdom,Phylum,Class,Order,Family,Subfamily,T
 Author: Dan Parsons & Maria Kamouyiaros @ NHMUK
 Date: 2024-06-20
 License: MIT
-
-Version: 1.7.0
-Change log:
-v1.0.0: Initial implementation
-v1.1.0: 
-v1.2.0: Take assembly_dir and output contigs with correct taxonomy
-v1.3.0: Update taxonomy matching decision process to include genus-level fallback (if exp family in >1 contig)
-v1.4.0: Update taxonomy matching decision process to include species-level fallback (if exp genus in >1 contig)
-v1.5.0: Add genus-level fallback when expected_family is empty in input taxonomy CSV
-v1.6.0: Update logic and order of operations (user-defined length and pident filter now applied before top N filtering)
-      : - new argument --min_pident
-      : Added debug logging to show loaded taxonomy mapping
-      : Added new fallback for incertae sedis families (use genus-level matching if available)
-v.1.7.0: Removed duplicate code at the end of main() and used extract_passing_contigs() instead
-       : Fixed bug where assembly_file was in create_taxonomy_validation_summary()
 """
 
 import os
@@ -67,6 +52,40 @@ from collections import defaultdict
 from datetime import datetime
 from metahist_tools import setup_logging
 from its_fun_tools import log_and_print    
+
+
+def count_contigs_in_assembly(assembly_dir, sample_id):
+    """
+    Count total contigs in the scaffolds.fasta file for a sample.
+    
+    Args:
+        assembly_dir: Path to directory containing assembly outputs
+        sample_id: Sample identifier
+    
+    Returns:
+        int: Number of contigs (sequences) in the scaffolds.fasta file, or 0 if not found
+    """
+    if not assembly_dir:
+        return 0
+    
+    scaffolds_file = Path(assembly_dir) / f"{sample_id}.spades.out" / "scaffolds.fasta"
+    
+    if not scaffolds_file.exists():
+        log_and_print(f"  -> No scaffolds.fasta found for {sample_id}", level='debug')
+        return 0
+    
+    count = 0
+    try:
+        with open(scaffolds_file, 'r') as f:
+            for line in f:
+                if line.startswith('>'):
+                    count += 1
+    except Exception as e:
+        log_and_print(f"  -> Error counting contigs in {scaffolds_file}: {e}", level='warning')
+        return 0
+    
+    return count
+
         
 def detect_blast_format(input_file):
     ''' Detects blast outfmt 6 format and whether it has a valid header line.'''
@@ -268,7 +287,7 @@ def get_expected_taxonomy_from_filename(filename, taxonomy_mapping):
     
     return None, None, None
     
-def create_taxonomy_validation_summary(output_dir, taxonomy_mapping, assembly_dir=None, summary_csv='taxonomy_validation_summary.csv'):
+def create_taxonomy_validation_summary(output_dir, taxonomy_mapping, assembly_dir, summary_csv='taxonomy_validation_summary.csv'):
     '''Creates a taxonomy validation summary CSV file based on parsed BLAST output files.
     Functions by checking contig hits against expected taxonomy starting from family level,
     with fallbacks to genus and species levels as needed.'''
@@ -313,12 +332,15 @@ def create_taxonomy_validation_summary(output_dir, taxonomy_mapping, assembly_di
         if not expected_family and not expected_genus and expected_species:
             expected_family_display = f"{expected_species} (species)"
 
+        # Count total contigs in the assembly file (input to BLAST)
+        n_contigs_in_assembly = count_contigs_in_assembly(assembly_dir, matched_id)
+
         # Initialise result dictionary
         result = {
             'ID': matched_id if matched_id else '',
             'expected_family': expected_family_display,
             'expected_taxonomy': expected_full_taxonomy if expected_full_taxonomy else '',
-            'n_contigs': 0,
+            'n_contigs_in': n_contigs_in_assembly if n_contigs_in_assembly > 0 else 'NA',
             'n_contigs_hits': 0,
             'contigs': '',
             'hit_taxonomy': 'NA',
@@ -330,8 +352,6 @@ def create_taxonomy_validation_summary(output_dir, taxonomy_mapping, assembly_di
         # Read the parsed BLAST output tsv file
         try:
             df = pd.read_csv(parsed_file, sep='\t')
-            #number of unique contigs parsed == number of unique qseqid in TSV file
-            result['n_contigs_in'] = df['qseqid'].nunique()
             if df.empty:
                 log_and_print(f"    -> No hits found in file -> FAIL")
                 summary_results.append(result)
@@ -681,8 +701,6 @@ def create_taxonomy_validation_summary(output_dir, taxonomy_mapping, assembly_di
             
         except Exception as e:
             log_and_print(f"    -> Error processing {parsed_file}: {e}", level='error')
-            # Still add the result with error values
-            result['n_contigs_in'] = 0
         
 
         summary_results.append(result)
@@ -920,8 +938,8 @@ def main():
                        help='Minimum percentage identity to consider (optional)')
     parser.add_argument('--log_file', default=None,
                        help='Log file path (default: blast_processor_YYYYMMDD_HHMMSS.log)')
-    parser.add_argument('--assembly_dir', default='.',
-                       help='Directory containing assemblies for FASTA extraction (default: current directory)')
+    parser.add_argument('--assembly_dir', required=True,
+                       help='Directory containing assemblies (*.spades.out) for contig counting and FASTA extraction')
     parser.add_argument('--id_column', default='ID',
                    help='Column name in taxonomy CSV that contains the IDs matching filenames (default: ID)')
     parser.add_argument('--summary_csv', default='taxonomy_validation_summary.csv',
@@ -934,9 +952,8 @@ def main():
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         args.log_file = f'blast_processor_{timestamp}.log'
 
-    # Set up logging    
-    log_dir_path = os.path.join(args.output_dir, "logs")
-    logger = setup_logging(log_dir=log_dir_path, log_file=args.log_file)
+    # Set up logging
+    logger = setup_logging(log_file=args.log_file)
 
     # Load taxonomy mapping
     try:
@@ -963,12 +980,13 @@ def main():
         log_and_print(f"No TSV files found in {input_dir} or its subdirectories", level='error')
         return
         
-    #log_and_print(f"BLAST Results Processor Started")
-    #log_and_print(f"Input directory: {input_dir}")
-    #log_and_print(f"Output directory: {output_dir}")
-    #log_and_print(f"Taxonomy CSV: {args.taxonomy_csv}")
-    #log_and_print(f"Log file: {args.log_file}")
-    #log_and_print(f"Found {len(tsv_files)} TSV files to process")
+    log_and_print(f"BLAST Results Processor Started")
+    log_and_print(f"Input directory: {input_dir}")
+    log_and_print(f"Output directory: {output_dir}")
+    log_and_print(f"Taxonomy CSV: {args.taxonomy_csv}")
+    log_and_print(f"Assembly directory: {args.assembly_dir}")
+    log_and_print(f"Log file: {args.log_file}")
+    log_and_print(f"Found {len(tsv_files)} TSV files to process")
     if args.top_n is not None:
         log_and_print(f"Keeping top {args.top_n} hits per query sequence")
     else:
@@ -977,8 +995,6 @@ def main():
         log_and_print(f"Minimum alignment length filter: {args.min_len}")
     if args.min_pident is not None:
         log_and_print(f"Minimum percent identity filter: {args.min_pident}")
-    #log_and_print(f"Auto-detecting files with/without headers")
-    #log_and_print(f"Taxonomy validation summary will be created for all processed files")
     log_and_print("-" * 60)
     
     total_hits = 0
@@ -1027,7 +1043,7 @@ def main():
     
     # Show matched files
     for result in matched_files:
-        status = "✓" if result['processed'] else "✗"
+        status = "Ã¢Å“â€œ" if result['processed'] else "Ã¢Å“â€”"
         log_and_print(f"   {result['matched_id']} {status}")
         log_and_print(f"-> File: {result['filename']}")
         log_and_print(f"   Expected family: {result['expected_family']}")
@@ -1039,7 +1055,7 @@ def main():
     if unmatched_files:
         log_and_print(f"\nUnmatched Files:")
         for result in unmatched_files:
-            status = "✓" if result['processed'] else "✗"
+            status = "Ã¢Å“â€œ" if result['processed'] else "Ã¢Å“â€”"
             log_and_print(f"  {result['filename']} {status} - No taxonomy mapping found")
             if result['processed']:
                 log_and_print(f"    Queries processed: {result['queries']}, Hits extracted: {result['hits']}") 
@@ -1052,10 +1068,10 @@ def main():
     
     log_and_print(f"\nLog saved to: {args.log_file}")
     
-    # Assembly directory argument
-    if args.assembly_dir and summary_file:
+    # Extract FASTAs of passed contigs
+    if summary_file:
         log_and_print("\n" + "=" * 60)
-        log_and_print("ASSEMBLY DIRECTORY PROVIDED, CREATING FASTAS OF ALL 'PASS' CONTIGS:")
+        log_and_print("CREATING FASTAS OF ALL 'PASS' CONTIGS:")
         log_and_print("=" * 60)
         
         # Use the existing extract_passing_contigs function
