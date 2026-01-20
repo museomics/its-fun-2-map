@@ -12,23 +12,11 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from its_fun_tools import load_name_ids, cleanup_temp_dir, log_and_print
 
-sys.path.append('/home/mkamouyi/scratch/private/defra-fungi/PRJEB81712')
-
 from metahist_tools import repair_reads, setup_logging
 
 #### Date: 2025-08-04
-#### Purpose: tweaked version of decontam module to keep mapped reads instead of bin them (changed samtools flag and removed previous phix filtering step)
-####        : possible update to decontam module: make phix optional and add --mapped versus --unmapped reads
-#### Author: Maria Kamouyiaros
+#### Author: Maria Kamouyiaros & Dan Parsons (@ NHMUK)
 #### Important note: metahist_tools has an absolute path at the moment until modules are fully packaged - will need to change this after python package is finished
-#### Update 2025-08-28: Doesn't use --suffix, --prefix, --paired anymore; main edited so that reference (seed) is paired with each sample FASTQ based on ID
-####              : Includes step to index reference files if they're not already indexed
-#### Update 2025-10-08: Tweaked it so that it maps merged and unmerged reads to references and checks that there are no more than 3 found files (1 merged, 2 unmerged) 
-####              : Added logging to a file with timestamp if not provided by user and kept consistent with blast_parser logging
-#### Update 2025-11-17: Added --aligner argument to support both bwa-mem and bwa-aln algorithms
-#### Update 2025-11-18: Modified bwa-aln to output separate flagstats files and added mapping_summary.csv output
-#### Update 2025-11-26: Added empty file checks, improved logging, and ancient DNA-specific BWA ALN parameters (-l 16500 -n 0.01 -o 2)
-
 
 def parse_flagstats(flagstats_file):
     """Parse a samtools flagstats file to extract mapped read count and percentage.
@@ -62,17 +50,17 @@ def run_bwa_mem_and_samtools(sample_id, input_file, output_dir, temp_dir, ref, t
 
     ''' Function that runs BWA MEM and SAMtools to map reads to a reference and parse the mapped reads to an output FASTQ file.'''
 
-    if input_file.endswith("merged.fq"):
+    if input_file.endswith(("merged.fq","merged.fastq","merged.fq.gz", "merged.fastq.gz")):
         bam_file = os.path.join(temp_dir, f"{sample_id}_mapped.bam")
         sorted_bam_file = os.path.join(temp_dir, f"{sample_id}_mapped_sorted.bam")
         mapped_fastq = os.path.join(output_dir, f"{sample_id}_mapped.fastq")
         stats_file = os.path.join(output_dir, f"{sample_id}_mapped_flagstats.txt")
-    elif input_file.endswith("unmerged_1.fq"):
+    elif input_file.endswith(("unmerged_1.fq", "unmerged_1.fastq", "unmerged_1.fq.gz", "unmerged_1.fastq.gz")):
         bam_file = os.path.join(temp_dir, f"{sample_id}_mapped_unmerged_1.bam")
         sorted_bam_file = os.path.join(temp_dir, f"{sample_id}_mapped_sorted_unmerged_1.bam")
         mapped_fastq = os.path.join(output_dir, f"{sample_id}_mapped_unmerged_1.fastq")
         stats_file = os.path.join(output_dir, f"{sample_id}_unmerged_1_flagstats.txt")
-    elif input_file.endswith("unmerged_2.fq"):
+    elif input_file.endswith(("unmerged_2.fq", "unmerged_2.fastq", "unmerged_2.fq.gz", "unmerged_2.fastq.gz")):
         bam_file = os.path.join(temp_dir, f"{sample_id}_mapped_unmerged_2.bam")
         sorted_bam_file = os.path.join(temp_dir, f"{sample_id}_mapped_sorted_unmerged_2.bam")
         mapped_fastq = os.path.join(output_dir, f"{sample_id}_mapped_unmerged_2.fastq")
@@ -104,6 +92,35 @@ def run_bwa_mem_and_samtools(sample_id, input_file, output_dir, temp_dir, ref, t
         logger.error(f"Error processing {input_file}: {e}")
         raise
 
+def is_merged(p):
+    """ Return True if file is merged FASTQ """
+
+    p = Path(p)
+    return (
+        p.name.endswith((".fq", ".fastq", ".fq.gz", ".fastq.gz"))
+        and "_merged" in p.name
+        and "_unmerged" not in p.name
+    )
+
+def is_unmerged_1(p):
+    """ Return True if file is unmerged read 1 FASTQ """
+
+    p = Path(p)
+    return (
+        p.name.endswith(("_1.fq", "_1.fastq", "_1.fq.gz", "_1.fastq.gz"))
+        and "_unmerged" in p.name
+    )
+
+def is_unmerged_2(p):
+    """ Return True if file is unmerged read 2 FASTQ """
+
+    p = Path(p)
+    return (
+        p.name.endswith(("_2.fq", "_2.fastq", "_2.fq.gz", "_2.fastq.gz"))
+        and "_unmerged" in p.name
+    )
+
+
 
 def run_bwa_aln_and_samtools(sample_id, input_file, output_dir, temp_dir, ref, threads, logger, paired_file=None):
     
@@ -116,7 +133,7 @@ def run_bwa_aln_and_samtools(sample_id, input_file, output_dir, temp_dir, ref, t
     - -o 2: Allow 2 gap opens (accommodates small indels from degradation)
     """
 
-    if input_file.endswith("merged.fq"):
+    if is_merged(input_file):
         # Single-end merged reads
         sai_file = os.path.join(temp_dir, f"{sample_id}_mapped.sai")
         bam_file = os.path.join(temp_dir, f"{sample_id}_mapped.bam")
@@ -182,7 +199,11 @@ def run_bwa_aln_and_samtools(sample_id, input_file, output_dir, temp_dir, ref, t
             logger.error(f"[{sample_id}] Error processing {input_file}: {e}")
             raise
             
-    elif input_file.endswith("unmerged_1.fq") and paired_file and paired_file.endswith("unmerged_2.fq"):
+    elif (
+    is_unmerged_1(input_file)
+    and paired_file
+    and is_unmerged_2(paired_file)
+    ):
         # Paired-end unmerged reads - process both together
         sai_file_1 = os.path.join(temp_dir, f"{sample_id}_mapped_unmerged_1.sai")
         sai_file_2 = os.path.join(temp_dir, f"{sample_id}_mapped_unmerged_2.sai")
@@ -298,10 +319,10 @@ def generate_mapping_summary(sample_ids, output_dir, aligner, logger):
         summary_data.append({
             'ID': sid,
             'alignment_method': aligner,
-            'mapped_n_reads': n_merged if n_merged is not None else 'NA',
-            'mapped_perc': perc_merged if perc_merged is not None else 'NA',
-            'mapped_n_reads_unmerged_1': n_unmerged_1 if n_unmerged_1 is not None else 'NA',
-            'mapped_n_reads_unmerged_2': n_unmerged_2 if n_unmerged_2 is not None else 'NA'
+            'n_reads': n_merged if n_merged is not None else 'NA',
+            'perc': perc_merged if perc_merged is not None else 'NA',
+            'n_reads_unmerged_1': n_unmerged_1 if n_unmerged_1 is not None else 'NA',
+            'n_reads_unmerged_2': n_unmerged_2 if n_unmerged_2 is not None else 'NA'
         })
     
     # Create DataFrame and save to CSV
@@ -324,8 +345,7 @@ def main(args):
         args.log_file = f'mapping_log_{timestamp}.log'
     
     # Set up logging    
-    log_dir_path = os.path.join(args.output_dir, "logs")
-    logger = setup_logging(log_dir=log_dir_path, log_file=args.log_file)
+    logger = setup_logging(log_file=args.log_file)
 
     logger.info(f"Using aligner: {args.aligner}")
     if args.aligner == "bwa-aln":
@@ -437,9 +457,9 @@ def main(args):
                 files = data["files"]
                 
                 # Separate merged and unmerged files
-                merged_files = [f for f in files if "merged.fq" in f and "unmerged" not in f]
-                unmerged_1_files = [f for f in files if "unmerged_1.fq" in f]
-                unmerged_2_files = [f for f in files if "unmerged_2.fq" in f]
+                merged_files = [f for f in files if is_merged(f)]
+                unmerged_1_files = [f for f in files if is_unmerged_1(f)]
+                unmerged_2_files = [f for f in files if is_unmerged_2(f)]
                 
                 # Process merged file (single-end)
                 for merged_file in merged_files:
