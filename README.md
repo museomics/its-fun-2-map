@@ -1,13 +1,16 @@
 # its-fun-2-map
-A pipeline for processing fungal genome skims from museum specimens - includes quality control, mapping, assembly, BLAST taxonomic assignment, and validation.
+
+A pipeline for processing fungal genome skims from museum specimens — includes quality control, mapping, assembly, BLAST taxonomic assignment, and validation.
 
 ## Contents
-1. [Dependencies](#Dependencies)
-2. [Process](#Process)
-3. [Workflow](#workflow)
-4. [Output Directory Structure](#Output-Directory-Structure)
-5. [Configuration](#Configuration)
-6. [Authorship](#Authors)
+1. [Dependencies](#dependencies)
+2. [Pipeline Overview](#pipeline-overview)
+3. [Detailed Process](#detailed-process)
+4. [Workflow](#workflow)
+5. [Output Directory Structure](#output-directory-structure)
+6. [Configuration](#configuration)
+7. [Usage Examples](#usage-examples)
+8. [Authors](#authors)
 
 ## Dependencies
 
@@ -16,13 +19,15 @@ A pipeline for processing fungal genome skims from museum specimens - includes q
 - python 3.11+
 
 ### Conda packages
-- spades (4.0.0)
-- seqkit (2.2.0)
-- samtools (1.21)
-- bwa (0.7.18-r1243-dirty)
-- fastp (0.24.0)
-- htslib (1.21)
-- blast (2.2.31+)
+| Package  | Version              |
+|----------|----------------------|
+| spades   | 4.0.0                |
+| seqkit   | 2.2.0                |
+| samtools | 1.21                 |
+| bwa      | 0.7.18-r1243-dirty   |
+| fastp    | 0.24.0               |
+| htslib   | 1.21                 |
+| blast    | 2.2.31+              |
 
 ### Python packages (not built-in)
 - pandas (`pip install pandas`)
@@ -33,39 +38,85 @@ A pipeline for processing fungal genome skims from museum specimens - includes q
 ### R packages
 - (jsonlite)[https://cran.r-project.org/web/packages/jsonlite/index.html] 
 
-### Custom tool packages
+### Custom tool packages (included in repository)
  - its_fun_tools
  - metahist_tools
 
 ### Databases
-- blast_dir:
-  - (UNITE databases)
+- BLASTn databases:
+ - [UNITE Full "UNITE+INSD" database](https://unite.ut.ee/repository.php#panel6a) — for reference sequence retrieval
+ - [UNITE General Release (sh_general_release_dynamic)](https://unite.ut.ee/repository.php#panel5a) — for BLAST Round 1
+ - [UCHIME ITS1 reference dataset](https://unite.ut.ee/repository.php#panel7a) — for BLAST Round 2b
+ - [UCHIME ITS2 reference dataset](https://unite.ut.ee/repository.php#panel7a) — for BLAST Round 2a
 
 
-## Process 
+## Pipeline Overview
+
+The pipeline processes raw paired-end sequencing reads from fungal museum specimens through quality control, reference-guided read enrichment, assembly, and multi-round BLAST validation to extract and validate ITS barcode sequences.
+
+```
+Raw Reads → QC → Reference Retrieval → Read Mapping → Assembly → BLAST Validation → ITS Extraction
+```
+
+### Step 1: Quality Control (`fastp_module.py`)
+
+Quality control processing of raw paired-end reads using fastp with a two-stage approach.
+
 ### Step 1: Quality Control
 Quality control processing of raw PE reads using fastp
 - **Input:** Raw paired-end sequencing reads
-- **Output:** Quality-filtered reads
+- **Output:**
+ -  `{sample}_trimmed_1.fq`, `{sample}_trimmed_2.fq` — trimmed paired reads
+ - `{sample}_merged.fq` — merged overlapping reads
+ - `{sample}_unmerged_1.fq`, `{sample}_unmerged_2.fq` — reads that couldn't be merged
+ - `{sample}_trim.json`, `{sample}_merge.json` — QC metrics
+ - `{sample}_overlaps.html` — overlap distribution visualisation
+ - `fastp_summary.csv` — aggregated summary statistics
 - **Features:**
-  - Adapter trimming
-  - Quality filtering
+  - Adapter trimming and filtering (auto-detection for PE reads)
+  - Quality filtering (Q30 threshold)
+  - Read merging (Minimum merged length: 30 bp)
   - Read statistics generation
+
 ---
 
-### Step 2: Pseudo-Reference Sequence Retrieval
-Retrieves taxonomically relevant reference sequences from the UNITE database using a bespoke python script (UNITEd.py)
+### Step 2: Pseudo-Reference Sequence Retrieval (`UNITEd.py`)
+
+Retrieves taxonomically relevant reference sequences from the UNITE database using NCBI taxonomy matching.
+
+**Process:**
+1. Queries NCBI Entrez API for taxonomic lineage of each specimen
+2. Matches NCBI taxonomy against UNITE database taxonomy
+3. Extracts sequences based on user-specified parameters
+4. Supports fallback to higher taxonomic ranks if matches not found
+
+**Key Features:**
+- **Diversity mode:** Distributes sequences across child taxa, prioritising target species matches (up to 25% of requested sequences)
+- **Traverse mode:** Searches up the taxonomic hierarchy to collect target number of sequences
+- **Flexible matching:** Case-insensitive matching with normalisation for species name variations
+
 - **Input:** Tracking sheet with specimen taxonomy
-- **Output:** Reference sequences for each specimen
+- **Output:**
+ - `{sample_id}_seed.fasta` — reference sequences for each specimen
+ - Optional summary CSV with retrieval statistics
 - **Database:** [UNITE public (Full "UNITE+INSD") database](https://unite.ut.ee/repository.php#panel6a)
-- **Parameters:**
-  - Taxonomic rank: genus
-  - Number of reference sequences: 40
-  - Diversity mode enabled
-  - Traverses up to family level if required
-- **Features:**
-  - Generates reference sequence retrieval summary metrics
+
+**Parameters:**
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `--tax_rank` | — | Taxonomic rank to search (species/genus/family/order/class/phylum) |
+| `--number` | — | Number of reference sequences to retrieve |
+| `--diversity` | False | Distribute sequences across child taxa |
+| `--traverse` | — | Maximum rank to traverse up to if insufficient sequences found |
+| `--all` | False | Retrieve all matching sequences |
+
 ---
+
+
+
+
+
+
 
 ### Step 3: Read Mapping & Baiting
 Maps quality-filtered reads to retrieved reference sequences to enrich for target regions using bwa-mem
