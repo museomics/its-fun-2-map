@@ -1,12 +1,6 @@
 # its-fun-2-map
 A pipeline for processing fungal genome skims from museum specimens - includes quality control, mapping, assembly, BLAST taxonomic assignment, and validation.
 
-# TO DO
-- FINISH SUMMARY_COMPILER.PY LOGIC AND SEQUENCE SELECTION UPDATES
-- FINALISE RUN_PIPELINE.SH AND ADD TO REPO
-- FINALISE FLOW-CHART
-- 
-
 ## Contents
 1. [Dependencies](#Dependencies)
 2. [Process](#Process)
@@ -16,14 +10,36 @@ A pipeline for processing fungal genome skims from museum specimens - includes q
 6. [Authorship](#Authors)
 
 ## Dependencies
-- Python 3.11+
-- BLAST+
-- SeqKit
-- Samtools
-- SPAdes
-- BWA
-- fastp
-- R (with jsonlite package)
+
+### Languages
+- r-base (4.3.0 (2023-04-21 ucrt) -- "Already Tomorrow" +) 
+- python 3.11+
+
+### Conda packages
+- spades (4.0.0)
+- seqkit (2.2.0)
+- samtools (1.21)
+- bwa (0.7.18-r1243-dirty)
+- fastp (0.24.0)
+- htslib (1.21)
+- blast (2.2.31+)
+
+### Python packages (not built-in)
+- pandas (`pip install pandas`)
+- Bio (Biopython) (`pip install biopython`)
+- rpy2.robjects (`pip install rpy2`)
+- pgzip (`pip install pgzip`)
+
+### R packages
+- (jsonlite)[https://cran.r-project.org/web/packages/jsonlite/index.html] 
+
+### Custom tool packages
+ - its_fun_tools
+ - metahist_tools
+
+### Databases
+- blast_dir:
+  - (UNITE databases)
 
 
 ## Process 
@@ -162,9 +178,8 @@ output_base/
 ├── blast_parsed2b-ITS1/       # Validated ITS1 results
 ├── its_primer_extraction/     # Extracted ITS sequences
 └── logs/                      # Detailed logs for each step
-└── combined_summary.csv       # Final aggregated summary file
+└── final_results_dir          # Contains a final aggregated summary csv and final FASTAs
 ```
-
 
 ## Configuration
 Key parameters can be adjusted in the pipeline script:
