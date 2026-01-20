@@ -10,7 +10,7 @@ from collections import defaultdict
 from datetime import datetime
 from metahist_tools import setup_logging
 
-# BLAST output parser v0.0.0
+# BLAST output parser v3.0.0
 # Processes BLAST TSV files (outfmt 6) to extract best candidate contig based on blast results.
 # Contigs are filtered based on minimum length and percent identity, as well as e-value cutoff.
 # Outputs a new TSV file with filtered results.
@@ -30,7 +30,6 @@ from metahist_tools import setup_logging
 # Authors: Maria Kamouyiaros & Dan Parsons @ NHMUK
 # Date: 2025-11-28
 # License: MIT
-# Version: 2.0.0
 
 logger = logging.getLogger(__name__)
 
@@ -249,7 +248,40 @@ def get_expected_taxonomy_from_filename(filename, taxonomy_mapping, level):
     return None, None, None
 
 
-def process_blast_results(input_dir, output_dir, taxonomy_mapping,
+def count_contigs_in_assembly(assembly_dir, sample_id):
+    """
+    Count total contigs in the scaffolds.fasta file for a sample.
+    
+    Args:
+        assembly_dir: Path to directory containing assembly outputs
+        sample_id: Sample identifier
+    
+    Returns:
+        int: Number of contigs (sequences) in the scaffolds.fasta file, or 0 if not found
+    """
+    if not assembly_dir:
+        return 0
+    
+    scaffolds_file = Path(assembly_dir) / f"{sample_id}.spades.out" / "scaffolds.fasta"
+    
+    if not scaffolds_file.exists():
+        logger.debug("  -> No scaffolds.fasta found for %s", sample_id)
+        return 0
+    
+    count = 0
+    try:
+        with open(scaffolds_file, 'r') as f:
+            for line in f:
+                if line.startswith('>'):
+                    count += 1
+    except Exception as e:
+        logger.warning("  -> Error counting contigs in %s: %s", scaffolds_file, e)
+        return 0
+    
+    return count
+
+
+def process_blast_results(input_dir, output_dir, taxonomy_mapping, assembly_dir,
     min_len=100, min_pident=80, evalue_cutoff=1e-5, allow_all=False):
     '''Creates a taxonomy validation summary CSV file based on parsed BLAST output files.
     Functions by checking contig hits against expected taxonomy with the following logic:
@@ -304,13 +336,16 @@ def process_blast_results(input_dir, output_dir, taxonomy_mapping,
 
         output_file_path = Path(output_dir) / f"filtered_{parsed_file.stem}.tsv"
 
+        # Count total contigs in the assembly file (input to BLAST)
+        n_contigs_in_assembly = count_contigs_in_assembly(assembly_dir, matched_id)
+
         # Initialise result dictionary with blast_round1_ prefix column names
         result = {
             'ID': matched_id if matched_id else 'NA',
             'blast_round1_found_taxon': 'NA',
             'blast_round1_expected_taxonomy': expected_full_taxonomy if expected_full_taxonomy else 'NA',
             'blast_round1_n_contigs_hits': 'NA',
-            'blast_round1_n_contigs_in': 'NA',
+            'blast_round1_n_contigs_in': n_contigs_in_assembly if n_contigs_in_assembly > 0 else 'NA',
             'blast_round1_contigs': 'NA',
             'blast_round1_hit_taxonomy': 'NA',
             'blast_round1_hit_coords': 'NA',
@@ -338,8 +373,6 @@ def process_blast_results(input_dir, output_dir, taxonomy_mapping,
 
             df.columns = df.columns.astype(str).str.strip().str.replace("\ufeff", "")
 
-            # number of unique contigs parsed == number of unique qseqid in TSV file
-            result['blast_round1_n_contigs_in'] = df['qseqid'].nunique()
             if df.empty:
                 logger.info("    -> No hits found in file -> FAIL")
                 result['blast_round1_correct_taxonomy'] = 'FAIL'
@@ -624,10 +657,8 @@ def extract_passing_contigs(df, output_dir, assembly_dir):
 
         assembly_file = Path(assembly_dir) / f"{filename}.spades.out" / "scaffolds.fasta"
         if not assembly_file.is_file():
-            assembly_file = Path(assembly_dir) / f"{filename}.spades.out" / "contigs.fasta"
-            if not assembly_file.is_file():
-                logger.warning("  -> Assembly file not found for %s", filename)
-                continue
+            logger.warning("  -> Assembly file (scaffolds.fasta) not found for %s", filename)
+            continue
 
         grep_fasta_header(assembly_file, contig_patterns, output_file)
         if output_file.exists():
@@ -672,8 +703,8 @@ def main(args):
     if args.log_file is None:
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         args.log_file = f'blast_round1_processing_{timestamp}.log'
-    log_dir = os.path.join(args.output_dir, 'logs')
-    setup_logging(log_dir=log_dir, log_file=args.log_file)
+
+    setup_logging(log_file=args.log_file)
 
     # Load taxonomy columns from input CSV to be used in mapping to blast output files
     # output of load_taxonomy_mapping is a dictionary of {ID: {'family': family,
@@ -695,6 +726,7 @@ def main(args):
     logger.info("    Input directory: %s", args.input_dir)
     logger.info("    Output directory: %s", args.output_dir)
     logger.info("    Taxonomy CSV: %s", args.taxonomy_csv)
+    logger.info("    Assembly directory: %s", args.assembly_dir)
     logger.info("    Log file: %s", args.log_file)
     logger.info("    Found %d TSV files to process", len(tsv_files))
     if args.top_n is not None:
@@ -707,8 +739,6 @@ def main(args):
         logger.info("    Minimum percentage identity filter: %s", args.min_pident)
     if args.evalue_cutoff is not None:
         logger.info("    E-value cutoff filter: %s", args.evalue_cutoff)
-    if args.assembly_dir:
-        logger.info("    Assembly directory for FASTA extraction: %s", args.assembly_dir)
     logger.info("-" * 60)
     logger.info("Auto-detecting files with/without headers")
     logger.info("Taxonomy validation summary will be created for all processed files")
@@ -717,6 +747,7 @@ def main(args):
     # the output of this is a csv file with a full summary of contigs based on
     # input parameters and a dataframe of the file results
     processed_blast_df = process_blast_results(args.input_dir, args.output_dir, taxonomy_mapping,
+        assembly_dir=args.assembly_dir,
         min_len = args.min_len, min_pident=args.min_pident, evalue_cutoff=args.evalue_cutoff,
         allow_all=args.allow_all)
 
@@ -729,19 +760,18 @@ def main(args):
     logger.info("Total number of processed files: %d", len(tsv_files))
     logger.info("=" * 60)
 
-    # Assembly directory argument means FASTAs of passed contigs should be created
-    if args.assembly_dir:
-        logger.info("\n" + "=" * 60)
-        logger.info("ASSEMBLY DIRECTORY PROVIDED, CREATING FASTAS OF ALL 'PASS' CONTIGS:")
-        logger.info("=" * 60)
+    # Extract FASTAs of passed contigs
+    logger.info("\n" + "=" * 60)
+    logger.info("CREATING FASTAS OF ALL 'PASS' CONTIGS:")
+    logger.info("=" * 60)
 
-        # Use the existing extract_passing_contigs function
-        extracted_count = extract_passing_contigs(processed_blast_df, args.output_dir,
-            args.assembly_dir)
+    # Use the existing extract_passing_contigs function
+    extracted_count = extract_passing_contigs(processed_blast_df, args.output_dir,
+        args.assembly_dir)
 
-        if extracted_count:
-            # Update the summary file with contig paths
-            update_summary_with_contig_paths(args.output_dir)
+    if extracted_count:
+        # Update the summary file with contig paths
+        update_summary_with_contig_paths(args.output_dir)
 
 if __name__ == "__main__":
     if len(sys.argv) == 1:
@@ -767,8 +797,8 @@ if __name__ == "__main__":
         help='E-value cutoff to consider (default: 1e-5)')
     parser.add_argument('--log_file', default=None,
         help='Log file path (default: blast_processor_YYYYMMDD_HHMMSS.log)')
-    parser.add_argument('--assembly_dir', default=None, help='Directory containing \
-        assemblies for FASTA extraction (default: current directory)')
+    parser.add_argument('--assembly_dir', required=True, help='Directory containing \
+        assemblies (*.spades.out) for contig counting and FASTA extraction')
     parser.add_argument('--id_column', default = "ID", help='Column name in taxonomy CSV that contains \
         the IDs matching filenames')
     parser.add_argument('--allow_all', action='store_true',
