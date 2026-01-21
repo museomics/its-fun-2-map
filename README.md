@@ -372,14 +372,12 @@ Identifies primer binding sites and extracts ITS sequences from validated contig
 
 **Custom Primers TSV Format:**
 ```
-name	sequence
 FWD1	ATCGATCGATCG
 REV1	GCTAGCTAGCTA
 ```
 
 **Custom Regions TSV Format:**
 ```
-region	forward	reverse
 MyRegion	FWD1	REV1
 ```
 
