@@ -523,10 +523,21 @@ The pipeline accepts CSV or XLSX tracking sheets with the following columns:
 - `forward` / `fwd` — path to forward reads
 - `reverse` / `rev` — path to reverse reads
 
+If forward/reverse columns are present, file paths are read directly from the tracking sheet. Otherwise, files are searched for in the input directory using sample IDs.
+
 **For taxonomy validation (blast parsers):**
 - `Kingdom`, `Phylum`, `Class`, `Order`, `Family`, `Genus`, `Species` — taxonomic hierarchy columns
 
-If forward/reverse columns are present, file paths are read directly from the tracking sheet. Otherwise, files are searched for in the input directory using sample IDs.
+If your spreadsheet doesn't contain taxonomic hierarchy columns, you can use the helper script `pull_ncbi_lineage.py`. This script will take any spreadsheet (both CSV and XLSX allowed) and queries all taxonomic IDs within in using NCBI Entrez. It then appends the taxonomic hierarchy columns to the spreadsheet. Outputs a log file and a CSV to your working directory for downstream use. 
+
+If using the pipeline shell script, this can be opted in by changing "need_lineage" to "YES" in [Advanced Usage: Configurable paramaters](https://github.com/museomics/its-fun-2-map/blob/main/tutorial.md). 
+
+```
+## Configurable parameters
+# UNITEd.py parameters
+need_lineage="NO"     #change to "YES" to use pull_ncbi_lineage.py
+
+```
 
 ## Authors
 **M. Kamouyiaros & D. Parsons** @ the Natural History Museum, London (NHMUK)
