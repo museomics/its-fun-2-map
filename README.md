@@ -176,7 +176,7 @@ Assembles mapped reads into contigs using SPAdes with a multi-stage fallback str
  
 ---
 
-## Step 5: BLASTn — Round 1 (General Database) (`blast_pipe.py`)
+## Step 5: BLASTn — Round 1 (General Database) (`blast_round1.py`)
 Searches assembled scaffolds against the general UNITE database for initial taxonomic identification.
 
 **Process:**
@@ -383,7 +383,7 @@ MyRegion	FWD1	REV1
 
 ---
 
-## Step 12: Summary Metrics Aggregation (`merge_outputs.py`)
+## Step 12: Summary Metrics Aggregation (`its_a_summary_compiler.py`)
 Compiles comprehensive summary statistics across all pipeline steps, performs contig analysis to resolve ITS1/ITS2 results, and prepares final output FASTAs for submission.
 
 **Process:**
@@ -393,7 +393,7 @@ Compiles comprehensive summary statistics across all pipeline steps, performs co
    - Overlapping coordinate detection (potential assembly issues)
    - Resolution when ITS1 and ITS2 are on different contigs
 3. **Decision Making:** Runs R-based decision logic (`its_decision_making.R`) to determine final outcomes
-4. **FASTA Preparation:** Renames and organises final FASTAs for submission with appropriate headers
+4. **FASTA Preparation:** Renames and organises final FASTAs for submission. This includes new sequence headers (default header= `<ID>|<ITS1/ITS2/ITS_complete/putative_ITS_region>` for any passes)
 
 **Contig Analysis Logic:**
 - **Both ITS1 and ITS2 PASS on same contig:** Check for coordinate overlap
@@ -445,10 +445,11 @@ output_base/
 │   ├── {sample}_trim.json
 │   ├── {sample}_merge.json
 │   ├── {sample}_overlaps.html
+│   ├── fastp_summary.out          (long-formatted version of fastp_summary.csv)
 │   └── fastp_summary.csv
 ├── UNITEd/                        # Step 2: Retrieved reference sequences
 │   ├── {sample}_seed.fasta
-│   └── retrieval_summary.csv
+│   └── UNITEd_summary.csv
 ├── mapped_reads/                  # Step 3: Reads mapped to references
 │   ├── {sample}_mapped.fastq
 │   ├── {sample}_mapped_unmerged_1.fastq
@@ -472,12 +473,14 @@ output_base/
 ├── blast_round2a-ITS2/            # Step 7: ITS2-specific BLAST results
 │   └── {sample}_blast.tsv
 ├── blast_parsed2a-ITS2/           # Step 8: Validated ITS2 results
-│   ├── taxonomy_validation_summary.csv
+│   ├── blast_parser_its2_summary.csv
+│   ├── {sample}_blast_results-all_hits.tsv
 │   └── {sample}_parsed_contig.fasta
 ├── blast_round2b-ITS1/            # Step 9: ITS1-specific BLAST results
 │   └── {sample}_blast.tsv
 ├── blast_parsed2b-ITS1/           # Step 10: Validated ITS1 results
-│   ├── taxonomy_validation_summary.csv
+│   ├── blast_parser_its2_summary.csv
+│   ├── {sample}_blast_results-all_hits.tsv
 │   └── {sample}_parsed_contig.fasta
 ├── its_extraction/                # Step 11: Extracted ITS sequences
 │   ├── ITS1/
