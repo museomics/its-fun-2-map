@@ -370,7 +370,7 @@ def main(args):
     # Step 2: Gather input files
     jobs = []
     for sid in sample_ids:
-        input_matches = glob.glob(os.path.join(args.input_dir, f"{sid}*merged*.fq"))
+        input_matches = glob.glob(os.path.join(args.input_dir, f"{sid}*merged*.f*q*"))
         ref_matches = glob.glob(os.path.join(args.ref_dir, f"{sid}*_seed.fasta"))
         logger.info(f"[{sid}] Found {len(input_matches)} FASTQ files and {len(ref_matches)} reference files")
 
