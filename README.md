@@ -55,6 +55,12 @@ conda env create -f its-fun-2-map.yaml
 ## Pipeline Overview
 The pipeline processes raw paired-end sequencing reads from fungal museum specimens through quality control, reference-guided read enrichment, assembly, and multi-round BLAST validation to extract and validate ITS barcode sequences.
 
+<figure>
+    <img src="https://github.com/museomics/its-fun-2-map/blob/main/img/ITS-FUN-FLOWCHART.jpg" width="2500" height="3500"
+         alt="Pipeline-flowchart">
+    <figcaption>Flowchart of the ITS-FUN-2-MAP pipeline</figcaption>
+</figure>
+
 ```
 Raw Reads → QC → Reference Retrieval → Read Mapping → Assembly → BLAST Validation → ITS Extraction
 ```
