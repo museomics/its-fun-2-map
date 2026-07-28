@@ -40,7 +40,7 @@ import argparse
 import logging
 import re
 import time
-import urllib
+import urllib.error
 import random
 import traceback
 from collections import defaultdict
@@ -48,6 +48,7 @@ from Bio import Entrez
 from datetime import datetime
 
 from metahist_tools import setup_logging
+from its_fun_tools import get_ncbi_lineage
 
 # Increase time between and number of tries used by entrez (from go_fetch.py)
 Entrez.sleep_between_tries = 20 
@@ -284,66 +285,6 @@ def build_unite_taxonomy_index(fasta_file, logger, keep_all_sequences=False):
         logger.error(f"Full traceback: {traceback.format_exc()}")
         raise
 
-
-
-def get_ncbi_lineage(taxid, email, logger, api_key=None):
-    """
-    Get NCBI taxonomic lineage for a given taxid with retry logic.
-    """
-    Entrez.email = email
-    if api_key and api_key != "None":
-        Entrez.api_key = api_key
-    
-    logger.info(f"Getting NCBI lineage for taxid: {taxid}")
-    
-    max_retries = 5
-    base_delay = 10
-    
-    for attempt in range(max_retries):
-        try:
-            # Get taxonomy information
-            handle = Entrez.efetch(db="Taxonomy", id=taxid, retmode="xml")
-            record = Entrez.read(handle)
-            
-            if not record:
-                raise ValueError(f"No taxonomy record found for taxid {taxid}")
-            
-            # Extract lineage information
-            tax_record = record[0]
-            lineage_list = tax_record.get("LineageEx", [])
-            
-            # Add the current taxon to the lineage
-            lineage_list.append({
-                'TaxId': tax_record['TaxId'],
-                'ScientificName': tax_record['ScientificName'],
-                'Rank': tax_record['Rank']
-            })
-            
-            # Convert to our format
-            lineage = {}
-            for item in lineage_list:
-                rank = item['Rank']
-                name = item['ScientificName']
-                
-                # Map NCBI ranks
-                if rank in ['species', 'genus', 'family', 'order', 'class', 'phylum', 'kingdom']:
-                    lineage[rank] = name
-            
-            logger.info(f"Retrieved lineage for {taxid}: {', '.join([f'{k}:{v}' for k,v in lineage.items()])}")
-            return lineage
-            
-        except (ValueError, urllib.error.HTTPError, urllib.error.URLError) as e:
-            delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
-            logger.warning(f"Attempt {attempt+1}/{max_retries}: Error getting lineage for {taxid}: {str(e)}")
-            
-            if attempt < max_retries - 1:
-                logger.info(f"Retrying in {delay:.2f} seconds...")
-                time.sleep(delay)
-            else:
-                logger.error(f"Failed to get lineage for {taxid} after {max_retries} attempts.")
-                raise
-    
-    raise Exception(f"Failed to get lineage for {taxid}")
 
 
 def get_most_specific_taxon(ncbi_lineage):

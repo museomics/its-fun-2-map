@@ -56,7 +56,7 @@ its_outcome <- function(df){
 	
 	df[s6, "decision_description"] <- "Complete ITS region"
 	df[s6, "Final_contig"] <- df$extraction_ITS_complete_path[s6]
-	df[s2, "Final_contig_desc"] <- "complete_ITS_region"
+	df[s6, "Final_contig_desc"] <- "complete_ITS_region"
 	df[s6, "Final_outcome"] <- "PASS"
 	
 	
@@ -91,7 +91,7 @@ its_outcome <- function(df){
 	)
 	
 	df[s12, "decision_description"] <- "Complete ITS region"
-	df[s12, "Final_contig"] <- df$df$extraction_ITS_complete_path[s12]
+	df[s12, "Final_contig"] <- df$extraction_ITS_complete_path[s12]
 	df[s12, "Final_contig_desc"] <- "complete_ITS_region"
 	df[s12, "Final_outcome"] <- "PASS"
 	

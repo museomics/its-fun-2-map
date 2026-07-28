@@ -42,7 +42,7 @@ def add_ncbi_lineages_to_csv(input_csv, output_csv, taxcolumn, email, logger, ap
     elif filetype == ".csv":
         df = pd.read_csv(input_csv)
     else:
-        raise ValueError(f"Unsupported tracking sheet format: {tracking_sheet}")
+        raise ValueError(f"Unsupported tracking sheet format: {input_csv}")
 
     if taxcolumn not in df.columns:
         logger.error(f"Taxid column '{taxcolumn}' not found in input CSV.")
@@ -67,7 +67,7 @@ def add_ncbi_lineages_to_csv(input_csv, output_csv, taxcolumn, email, logger, ap
     df.to_csv(output_csv, index=False)
     logger.info(f"Lineage data added and saved to {output_csv}")
 
-def main():
+def main(args):
 
     # Set up logging
     if args.log_file is None:
@@ -88,8 +88,8 @@ if __name__ == "__main__":
     parser.add_argument("--email", help="Email address for NCBI Entrez.")
     parser.add_argument("--api_key", help="NCBI API key for increased rate limits.", default=None)
     parser.add_argument("--taxcolumn", help="Column name in CSV that contains taxids.", default="taxid")
-    parser.add_argument("--log_file", help="Path to log file.", default="ncbi_lineage.log")
-    parser.add_argument("--sheet", help="Sheet number to read if input is XLSX. Default is 1.", type=int, default=1)    
+    parser.add_argument("--log_file", help="Path to log file.", default=None)
+    parser.add_argument("--sheet", help="Sheet number to read if input is XLSX. Default is 1.", type=int, default=1)
     args = parser.parse_args()
 
-    main()
+    main(args)

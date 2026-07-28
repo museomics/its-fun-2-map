@@ -351,12 +351,12 @@ def main():
         fasta_file = find_fasta_for_sample(sample_id, input_dir)
 
         if fasta_file is None:
-            print(f"WARNING: No FASTA file found for sample: {sample_id}")
+            logger.warning("No FASTA file found for sample: %s", sample_id)
             samples_without_fasta.add(sample_id)
             continue
 
         samples_with_fasta.add(sample_id)
-        print(f"\nProcessing sample {sample_id}: {fasta_file}")
+        logger.info("Processing sample %s: %s", sample_id, fasta_file)
 
         # Run amplicon extraction for each region
         for region_name, (forward_key, reverse_key) in REGIONS.items():
@@ -369,11 +369,12 @@ def main():
                 str(fasta_file),
                 str(output_file),
                 forward_primer,
-                reverse_primer
+                reverse_primer,
+                logger=logger
             )
 
             count = count_sequences(output_file)
-            print(f"  {region_name}: {count} sequences")
+            logger.info("  %s: %d sequences", region_name, count)
 
     # Report samples without FASTA files
     if samples_without_fasta:
@@ -396,15 +397,10 @@ def main():
     # Write CSV summary
     csv_file = output_dir / "extraction_summary.csv"
     with open(csv_file, 'w', newline='') as csvfile:
-        fieldnames = [
-            'ID',
-            'ITS1',
-            'ITS1_path',
-            'ITS2',
-            'ITS2_path',
-            'ITS_complete',
-            'ITS_complete_path'
-        ]
+        fieldnames = ['ID']
+        for region_name in REGIONS.keys():
+            fieldnames.append(region_name)
+            fieldnames.append(f'{region_name}_path')
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
 

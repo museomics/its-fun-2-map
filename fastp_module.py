@@ -96,7 +96,7 @@ def run_fastp_json_summary(
     """Run the R fastp JSON parser on all JSON files in a directory."""
 
     json_dir = Path(json_dir)
-    r_script = Path('parse_fastp_json.R')
+    r_script = Path(__file__).parent / 'parse_fastp_json.R'
 
     # Confirm script exists
     if not r_script.exists():
@@ -106,7 +106,7 @@ def run_fastp_json_summary(
     logger.info(f"Running fastp JSON parser")
 
     # Assess for which sequences/contigs can be taken forward for submission
-    r['source']('parse_fastp_json.R')
+    r['source'](str(r_script))
     json2csv = r['json2csv']
 
     with localconverter(default_converter + pandas2ri.converter):

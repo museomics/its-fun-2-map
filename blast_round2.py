@@ -72,7 +72,7 @@ def run_seqkit_and_blast(tracking_sheet, column_name,query_dir, blast_dir, datab
             # Extract unique headers from TSV
             unique_ids_file = os.path.join(tmp_fasta_dir, f"{name_id}_unique_headers.txt")
             with open(tsv_file) as f, open(unique_ids_file, "w") as out_f:
-                ids = {line.split("\t")[0] for line in f if line.strip()}
+                ids = {line.split("\t")[0] for line in f if line.strip() and line.split("\t")[0] != "qseqid"}
                 out_f.write("\n".join(sorted(ids)))
 
             # Run extraction + BLAST for each scaffold
