@@ -8,9 +8,7 @@ The `its-fun-2-map` repository implements a bioinformatics pipeline for extracti
 
 ## Critical Missing Dependencies
 
-Before any per-script issues, two structural problems block the pipeline for any new user:
-
-1. **`metahist_tools` package is absent from the repository.** Every script imports from it (`clean_and_tar`, `run_command`, `xlsx2csv`, `setup_logging`, `repair_reads`). README claims it is "included in the repository" — it is not. This must be included or replaced before the pipeline is usable.
+1. **`metahist_tools` package is absent from the repository.** Every script imports from it (`clean_and_tar`, `run_command`, `xlsx2csv`, `setup_logging`, `repair_reads`). README claims it is "included in the repository" — it is not. **this will be released as a PyPi package, and therefore will become a dependency of the pipeline.**
 
 2. **`pipeline.sh` and `its_a_summary_compiler.py` are referenced in the README but do not exist.** There is no way to run the full pipeline end-to-end.
 
