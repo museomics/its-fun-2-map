@@ -50,7 +50,7 @@ import pandas as pd
 from pathlib import Path
 from collections import defaultdict
 from datetime import datetime
-from metahist_tools import setup_logging
+from seqpy_tools import setup_logging
 from its_fun_tools import log_and_print    
 
 
