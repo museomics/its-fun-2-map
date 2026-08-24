@@ -19,8 +19,7 @@ import csv
 from pathlib import Path
 from datetime import datetime
 from collections import defaultdict
-
-from metahist_tools import setup_logging
+from seqpy_tools import setup_logging
 
 # ITS primer sequences from White et al. 1990
 DEFAULT_PRIMERS = {
