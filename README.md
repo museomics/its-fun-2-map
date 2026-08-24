@@ -35,9 +35,9 @@ A pipeline for processing fungal genome skims from museum specimens — includes
 ### R packages
 - [jsonlite](https://cran.r-project.org/web/packages/jsonlite/index.html)
 
-### Custom tool packages (included in repository)
+### Custom tool packages
  - its_fun_tools
- - metahist_tools
+ - seqpy-tools ([available via pip](https://pypi.org/project/seqpy-tools/))
 
 ### Databases
 - BLASTn databases:
