@@ -46,8 +46,7 @@ import traceback
 from collections import defaultdict
 from Bio import Entrez
 from datetime import datetime
-
-from metahist_tools import setup_logging
+from seqpy_tools import setup_logging
 
 # Increase time between and number of tries used by entrez (from go_fetch.py)
 Entrez.sleep_between_tries = 20 
