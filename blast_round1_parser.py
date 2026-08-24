@@ -8,7 +8,7 @@ import pandas as pd
 from pathlib import Path
 from collections import defaultdict
 from datetime import datetime
-from metahist_tools import setup_logging
+from seqpy_tools import setup_logging
 
 # BLAST output parser v3.0.0
 # Processes BLAST TSV files (outfmt 6) to extract best candidate contig based on blast results.
