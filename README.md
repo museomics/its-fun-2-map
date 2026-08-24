@@ -37,7 +37,7 @@ A pipeline for processing fungal genome skims from museum specimens — includes
 
 ### Custom tool packages
  - its_fun_tools
- - seqpy-tools ([available via pip](https://pypi.org/project/seqpy-tools/))
+ - [seqpy-tools](https://github.com/museomics/seqpy_tools) ([available via pip](https://pypi.org/project/seqpy-tools/))
 
 ### Databases
 - BLASTn databases:
