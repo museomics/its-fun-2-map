@@ -8,11 +8,7 @@ The `its-fun-2-map` repository implements a bioinformatics pipeline for extracti
 
 ## Critical Missing Dependencies
 
-Two structural problems block the pipeline for any new user:
-
-1. **`metahist_tools` package is absent from the repository.** Every script imports from it (`clean_and_tar`, `run_command`, `xlsx2csv`, `setup_logging`, `repair_reads`). The README claims it is "included in the repository" — it is not. `metahist_tools` will be released as its own PyPI package and become a declared dependency of `its-fun-2-map`.
-
-2. **`pipeline.sh` and `its_a_summary_compiler.py` are referenced in the README but do not exist.** There is no way to run the full pipeline end-to-end.
+**`pipeline.sh` and `its_a_summary_compiler.py` are referenced in the README but do not exist.** There is no way to run the full pipeline end-to-end.
 
 ---
 
@@ -61,7 +57,6 @@ Two structural problems block the pipeline for any new user:
 
 | Issue | Affected files |
 |---|---|
-| `metahist_tools` package absent from repository | All scripts — nothing runs without it |
 | `pipeline.sh` and `its_a_summary_compiler.py` missing | README references both; no end-to-end entrypoint exists |
 | Argument naming inconsistency (`--column_name` vs `--id_column`) | `blast_round1.py`, parsers |
 | No resume/checkpoint — mid-run failure restarts from scratch | All scripts |
@@ -123,9 +118,7 @@ This delivers:
 
 3. **Package data for R scripts.** `parse_fastp_json.R` and `its_decision_making.R` must be declared as package data in `pyproject.toml` (e.g. `[tool.setuptools.package-data] its_fun_2_map = ["*.R"]`). Without this, the `Path(__file__).parent` path resolution in `fastp_module.py` will fail after `pip install` because the R files will not be copied into the installed package.
 
-4. **`metahist_tools` as a declared dependency.** `metahist_tools` will be released as its own PyPI package. Once published, add it to `pyproject.toml` under `[project.dependencies]`. Until it is published, the five functions it provides (`xlsx2csv`, `setup_logging`, `run_command`, `clean_and_tar`, `repair_reads`) are the single biggest blocker for any user attempting to run the pipeline.
-
-5. **Library-safe logging.** Some scripts call `setup_logging()` at module level rather than inside `main()`. When the package is imported rather than run as a CLI script, this reconfigures the calling application's root logger. Add `logging.NullHandler()` to `its_fun_2_map/__init__.py` and ensure `setup_logging()` is only called from within `main()` or `if __name__ == "__main__"` blocks.
+4. **Library-safe logging.** Some scripts call `setup_logging()` at module level rather than inside `main()`. When the package is imported rather than run as a CLI script, this reconfigures the calling application's root logger. Add `logging.NullHandler()` to `its_fun_2_map/__init__.py` and ensure `setup_logging()` is only called from within `main()` or `if __name__ == "__main__"` blocks.
 
 ### Snakemake / Nextflow pipeline
 
@@ -155,9 +148,9 @@ All per-script bugs listed in the original assessment have been resolved:
 - Fixed hardcoded CSV fieldnames in `its_primer_binding.py`
 - Removed duplicate `get_ncbi_lineage` from `UNITEd.py`
 - Exposed BWA thread count as `--bwa_threads` in `mapping_module.py`
+- `metahist_tools` package: available via pip, as seqpy-tools
 
 Remaining Phase 1 items:
-- `metahist_tools` package: still absent from repository (biggest blocker)
 - `its_primer_binding.py` line 500: missing f-string prefix (newly identified)
 
 ### Phase 2 — Open
@@ -172,7 +165,6 @@ Remaining Phase 1 items:
 - Write `tutorial.md` content with worked examples
 
 ### Phase 3 — Open
-- Publish `metahist_tools` to PyPI; add it as a dependency in `pyproject.toml`
 - Create `its_fun_2_map/` package directory with `__init__.py`; move scripts in; update imports
 - Write `pyproject.toml` with metadata, dependencies, and `console_scripts` entry points
 - Declare `parse_fastp_json.R` and `its_decision_making.R` as package data
@@ -185,11 +177,3 @@ Remaining Phase 1 items:
 
 ---
 
-## Verification
-
-- `conda env create -f its-fun-2-map.yaml` on a non-NHM machine succeeds
-- `pip install -e .` from repo root succeeds; `itsfun-qc --help` prints usage
-- `python -c "import its_fun_2_map"` succeeds with no logging side-effects
-- `python blast_round2.py ...` does not pass `qseqid` to seqkit
-- `Rscript its_decision_making.R --input_csv test.csv --output_csv out.csv` exits 0
-- `snakemake -n --configfile config.yaml` produces the expected DAG without errors
