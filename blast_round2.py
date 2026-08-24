@@ -11,8 +11,7 @@ import sys
 from datetime import datetime
 
 from its_fun_tools import load_name_ids, cleanup_temp_dir, blast_task
-from metahist_tools import xlsx2csv, setup_logging
-
+from seqpy_tools import xlsx2csv, setup_logging
 
 ### Author: Maria Kamouyiaros
 ### 2025-08-28 
