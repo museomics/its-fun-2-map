@@ -6,7 +6,7 @@ import shutil
 import csv
 from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from metahist_tools import setup_logging
+from seqpy_tools import setup_logging
 
 #### Author: Maria Kamouyiaros & Daniel Parsons @ NHMUK
 #### Date: 2025-08-04
