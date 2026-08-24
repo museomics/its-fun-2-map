@@ -14,8 +14,7 @@ import pathlib
 from rpy2.robjects import r
 from rpy2.robjects.conversion import localconverter
 from rpy2.robjects import pandas2ri, default_converter
-
-from metahist_tools import clean_and_tar, run_command, xlsx2csv, setup_logging
+from seqpy_tools import clean_and_tar, run_command, xlsx2csv, setup_logging
 
 def run_fastp_trim(sample_ids, r1_path, r2_path, output_dir, extra_args=None):
     """Run initial fastp trimming and filtering on paired-end reads."""
