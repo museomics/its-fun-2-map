@@ -74,7 +74,7 @@ Quality control processing of raw paired-end reads using fastp with a two-stage 
 
 - **Input:** Raw paired-end sequencing reads
 - **Output:**
-  -  `{sample}_trimmed_1.fq`, `{sample}_trimmed_2.fq` — trimmed paired reads
+  - `{sample}_trimmed_1.fq`, `{sample}_trimmed_2.fq` — trimmed paired reads
   - `{sample}_merged.fq` — merged overlapping reads
   - `{sample}_unmerged_1.fq`, `{sample}_unmerged_2.fq` — reads that couldn't be merged
   - `{sample}_trim.json`, `{sample}_merge.json` — QC metrics
@@ -82,10 +82,41 @@ Quality control processing of raw paired-end reads using fastp with a two-stage 
   - `fastp_summary.csv` — aggregated summary statistics
 - **Features:**
   - Adapter trimming and filtering (auto-detection for PE reads)
-  - Quality filtering (Q30 threshold)
+  - Quality filtering (Q30 threshold by default, configurable via `--qualified_quality_phred`)
   - Read merging (Minimum merged length: 30 bp)
   - Read statistics generation
 
+**Parameters:**
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `--qualified_quality_phred` | 30 | Phred score below which a base is counted as unqualified during trimming (fastp's `-q`). Note fastp's own default is 15 |
+| `--threads` | 4 | Number of **samples** processed in parallel (i.e. concurrent fastp processes) |
+| `--fastp_threads` | 3 | Worker threads used **within** each fastp process (fastp's `-w`). Matches fastp's own default |
+| `--fastp_extra_args` | — | Additional arguments for the trimming fastp call, given as a **single quoted string** |
+ 
+> **Note on threading.** `--threads` and `--fastp_threads` multiply. Total worker threads is approximately `--threads x --fastp_threads`, so the default `--threads 4` uses around 12 threads, not 4. The effective figure is written to the log at startup. On a scheduler, set `--threads $SLURM_CPUS_PER_TASK --fastp_threads 1` to make the CPU request and actual usage match.
+ 
+> **Note on `--fastp_extra_args`.** This argument takes one quoted string:
+> ```bash
+> --fastp_extra_args "--trim_front1 10 --trim_front2 10"
+> ```
+> It cannot be used to set `-q`/`--qualified_quality_phred` or `-w`/`--thread`, which the module sets itself — use `--qualified_quality_phred` and `--fastp_threads` instead. Supplying either via `--fastp_extra_args` causes the run to exit with an error before processing begins.
+  
+**Example usage:**
+```bash
+# Directory input
+python fastp_module.py --input_dir raw_reads --output_dir fastp_processed
+ 
+# Tracking sheet with forward/reverse path columns
+python fastp_module.py --tracking_sheet samples.csv --column_name ID --output_dir fastp_processed
+ 
+# Relaxed quality threshold, scheduler-friendly threading, extra trimming
+python fastp_module.py --input_dir raw_reads --output_dir fastp_processed \
+  --qualified_quality_phred 20 --threads 8 --fastp_threads 1 \
+  --fastp_extra_args "--trim_front1 10 --trim_front2 10"
+```
+ 
+---
 ---
 
 ## Step 2: Pseudo-Reference Sequence Retrieval (`UNITEd.py`)
@@ -342,22 +373,22 @@ Parses ITS1-specific BLAST results using the same multi-tier taxonomic validatio
 
 ### Step 11: ITS Primer Binding & Extraction (`its_primer_binding.py`)
 Identifies primer binding sites and extracts ITS sequences from validated contigs using `seqkit amplicon`. Uses standard ITS primers from White et al. (1990) by default, with support for custom primer sets.
-
-**Default Primers (White et al. 1990):**
+ 
+**Default Primers ([White et al. 1990](https://www.sciencedirect.com/science/chapter/edited-volume/abs/pii/B9780123721808500421?via%3Dihub)):**
 | Primer | Sequence (5' → 3') |
 |--------|-------------------|
 | ITS1 | `TCCGTAGGTGAACCTGCGG` |
 | ITS2 | `GCTGCGTTCTTCATCGATGC` |
 | ITS3 | `GCATCGATGAAGAACGCAGC` |
 | ITS4 | `TCCTCCGCTTATTGATATGC` |
-
+ 
 **Target Regions:**
 | Region | Forward Primer | Reverse Primer | Description |
 |--------|---------------|----------------|-------------|
 | ITS1 | ITS1 | ITS2 | ITS1 spacer region |
 | ITS2 | ITS3 | ITS4 | ITS2 spacer region |
 | ITS_complete | ITS1 | ITS4 | Full ITS region (ITS1 + 5.8S + ITS2) |
-
+ 
 **Process:**
 1. Reads sample IDs from tracking sheet
 2. Locates FASTA files for each sample
@@ -368,26 +399,34 @@ Identifies primer binding sites and extracts ITS sequences from validated contig
 - Validated contig FASTAs from Steps 8/10 (`*_parsed_contig.fasta`)
 - Tracking sheet with sample IDs
 - Optional: Custom primers TSV and regions TSV
-
 **Output:**
 - `ITS1/{sample}_ITS1.fa` — extracted ITS1 sequences
 - `ITS2/{sample}_ITS2.fa` — extracted ITS2 sequences
 - `ITS_complete/{sample}_ITS_complete.fa` — extracted complete ITS sequences
 - `extraction_summary.csv` — extraction success per sample and region
 - `summary_report.txt` — detailed extraction statistics
-
+ 
 **Custom Primers TSV Format:**
+A header row is required, with the columns `name` and `sequence` (tab-separated):
 ```
+name	sequence
 FWD1	ATCGATCGATCG
 REV1	GCTAGCTAGCTA
 ```
-
+ 
 **Custom Regions TSV Format:**
+ A header row is required, with the columns `region`, `forward` and `reverse` (tab-separated). The `forward` and `reverse` values must match `name` entries in the primers TSV:
 ```
+region	forward	reverse
 MyRegion	FWD1	REV1
 ```
-
+ 
+`--primers_tsv` and `--regions_tsv` must be supplied together, or neither (to use the built-in ITS defaults).
+ 
+> **Known limitation.** The sample categorisation section of `summary_report.txt` is hardcoded to the default `ITS1`/`ITS2`/`ITS_complete` region names. Under a custom regions TSV, `extraction_summary.csv` is correct but that section of the report will list every sample as having no regions extracted. Use `extraction_summary.csv` as the authoritative output for custom region sets.
+ 
 ---
+ 
 
 ## Step 12: Summary Metrics Aggregation (`its_a_summary_compiler.py`)
 Compiles comprehensive summary statistics across all pipeline steps, performs contig analysis to resolve ITS1/ITS2 results, and prepares final output FASTAs for submission.
