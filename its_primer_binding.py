@@ -9,7 +9,7 @@ ITS2 region (ITS3->ITS4). ITS3 primer is a reverse compliment of ITS2 (see White
 Custom primer pairs and target regions can be specified via TSV files.
 
 Author: D. Parsons (NHMUK) & M. KAMOUYIAROS (NHMUK)
-Version: 3.0.0
+Version: 3.0.1
 """
 
 import os
@@ -20,7 +20,8 @@ import csv
 from pathlib import Path
 from datetime import datetime
 from collections import defaultdict
-from seqpy_tools import setup_logging
+
+from metahist_tools import setup_logging
 
 # ITS primer sequences from White et al. 1990
 DEFAULT_PRIMERS = {
@@ -195,7 +196,7 @@ def count_sequences(fasta_file):
         return 0
 
 
-def run_seqkit_amplicon(input_file, output_file, forward_primer, reverse_primer, logger = None):
+def run_seqkit_amplicon(input_file, output_file, forward_primer, reverse_primer, logger):
     """Run seqkit amplicon for a specific primer pair"""
     cmd = [
         'seqkit', 'amplicon',
@@ -369,7 +370,8 @@ def main():
                 str(fasta_file),
                 str(output_file),
                 forward_primer,
-                reverse_primer
+                reverse_primer,
+                logger
             )
 
             count = count_sequences(output_file)
@@ -396,15 +398,11 @@ def main():
     # Write CSV summary
     csv_file = output_dir / "extraction_summary.csv"
     with open(csv_file, 'w', newline='') as csvfile:
-        fieldnames = [
-            'ID',
-            'ITS1',
-            'ITS1_path',
-            'ITS2',
-            'ITS2_path',
-            'ITS_complete',
-            'ITS_complete_path'
-        ]
+        # Derive fieldnames from REGIONS so custom --regions_tsv runs are supported
+        fieldnames = ['ID']
+        for region_name in REGIONS.keys():
+            fieldnames.extend([region_name, f'{region_name}_path'])
+
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
 
@@ -460,7 +458,7 @@ def main():
                     report.write(f"  {sample}: {count}\n")
             report.write("\n")
 
-        # Categorize samples
+        # Categorise samples
         failed_samples = []
         complete_samples = []
         its1_only_samples = []
@@ -501,7 +499,7 @@ def main():
 
     for region_name in REGIONS.keys():
         samples_with_seqs = [s for s in sorted(all_samples) if results[s][region_name] > 0]
-        logger.info("\n{region_name} sequences %d:", len(samples_with_seqs))
+        logger.info(f"\n{region_name} sequences %d:", len(samples_with_seqs))
         for sample in samples_with_seqs:
             count = results[sample][region_name]
             if region_name == 'ITS_complete':
