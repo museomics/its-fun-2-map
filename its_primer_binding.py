@@ -8,7 +8,8 @@ ITS2 region (ITS3->ITS4). ITS3 primer is a reverse compliment of ITS2 (see White
 
 Custom primer pairs and target regions can be specified via TSV files.
 
-Author: D. Parsons & M. KAMOUYIAROS (@ NHMUK)
+Author: D. Parsons (NHMUK) & M. KAMOUYIAROS (NHMUK)
+Version: 3.0.0
 """
 
 import os
@@ -129,7 +130,7 @@ def load_primers_and_regions(
     return primers, regions
 
 
-def read_tracking_sheet(tracking_sheet_path, column_name='ID', logger=None):
+def read_tracking_sheet(tracking_sheet_path, logger, column_name = "ID"):
     """Read tracking sheet and return set of sample IDs"""
     sample_ids = set()
 
@@ -320,7 +321,7 @@ def main():
 
     # Read sample IDs from tracking sheet
     logger.info("Reading sample IDs from tracking sheet: %s", tracking_sheet)
-    all_samples = read_tracking_sheet(tracking_sheet, column_name=column_name)
+    all_samples = read_tracking_sheet(tracking_sheet, logger, column_name=column_name)
 
     if not all_samples:
         logger.error("No sample IDs found in tracking sheet")
