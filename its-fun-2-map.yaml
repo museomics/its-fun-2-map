@@ -151,5 +151,6 @@ dependencies:
       - pytz==2025.2
       - rpy2-rinterface==3.6.3
       - rpy2-robjects==3.6.3
+      - seqpy-tools
       - six==1.17.0
       - tzdata==2025.3

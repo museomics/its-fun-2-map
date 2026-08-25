@@ -11,8 +11,7 @@ import time
 import random
 import urllib.error
 from Bio import Entrez
-
-from metahist_tools import xlsx2csv
+from seqpy_tools import xlsx2csv
 
 #### Helper functions used across scripts
 

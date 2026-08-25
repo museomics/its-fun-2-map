@@ -10,8 +10,7 @@ from Bio import Entrez
 from datetime import datetime
 
 from its_fun_tools import get_ncbi_lineage, log_and_print
-from metahist_tools import xlsx2csv, setup_logging
-
+from seqpy_tools import xlsx2csv, setup_logging
 
 # Increase time between and number of tries used by entrez (from go_fetch.py)
 Entrez.sleep_between_tries = 20

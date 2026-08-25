@@ -11,12 +11,10 @@ import re
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from its_fun_tools import load_name_ids, cleanup_temp_dir, log_and_print
-
-from metahist_tools import repair_reads, setup_logging
+from seqpy_tools import repair_reads, setup_logging
 
 #### Date: 2025-08-04
 #### Author: Maria Kamouyiaros & Dan Parsons (@ NHMUK)
-#### Important note: metahist_tools has an absolute path at the moment until modules are fully packaged - will need to change this after python package is finished
 
 def parse_flagstats(flagstats_file):
     """Parse a samtools flagstats file to extract mapped read count and percentage.

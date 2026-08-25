@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 import os
 import sys
 import glob
+import shlex
 import subprocess
 import argparse
 import shutil
@@ -14,10 +15,67 @@ import pathlib
 from rpy2.robjects import r
 from rpy2.robjects.conversion import localconverter
 from rpy2.robjects import pandas2ri, default_converter
+from seqpy_tools import clean_and_tar, run_command, xlsx2csv, setup_logging
 
-from metahist_tools import clean_and_tar, run_command, xlsx2csv, setup_logging
+# fastp flags that this module sets itself. Passing any of these via
+# --fastp_extra_args would place a duplicate on the fastp command line, so they
+# are rejected at startup in favour of the dedicated CLI arguments.
+MANAGED_FASTP_FLAGS = {
+    '-q': '--qualified_quality_phred',
+    '--qualified_quality_phred': '--qualified_quality_phred',
+    '-w': '--fastp_threads',
+    '--thread': '--fastp_threads',
+}
 
-def run_fastp_trim(sample_ids, r1_path, r2_path, output_dir, extra_args=None):
+
+def parse_fastp_extra_args(extra_args_string):
+    """Split a quoted --fastp_extra_args string into a list of fastp arguments.
+
+    Returns an empty list when no extras were supplied.
+    """
+
+    if not extra_args_string:
+        return []
+
+    return shlex.split(extra_args_string)
+
+
+def check_fastp_extra_args(extra_args, parser=None, logger=None):
+    """Reject extra fastp arguments that duplicate flags this module manages."""
+
+    conflicts = []
+
+    for token in extra_args:
+        # Handle both "--flag value" and "--flag=value" forms
+        flag = token.split('=', 1)[0]
+        if flag in MANAGED_FASTP_FLAGS:
+            conflicts.append((flag, MANAGED_FASTP_FLAGS[flag]))
+
+    if conflicts:
+        details = "; ".join(
+            f"'{flag}' is set by this script - use {replacement} instead"
+            for flag, replacement in conflicts
+        )
+        message = f"Conflicting fastp arguments in --fastp_extra_args: {details}"
+
+        if parser is not None:
+            parser.error(message)
+        if logger is not None:
+            logger.error(message)
+        raise ValueError(message)
+
+    return True
+
+
+def run_fastp_trim(
+    sample_ids,
+    r1_path,
+    r2_path,
+    output_dir,
+    qualified_quality_phred=30,
+    fastp_threads=3,
+    extra_args=None
+):
     """Run initial fastp trimming and filtering on paired-end reads."""
 
     tmp_dir = os.path.join(output_dir, "tmp")
@@ -30,8 +88,9 @@ def run_fastp_trim(sample_ids, r1_path, r2_path, output_dir, extra_args=None):
         "--out1", f"{output_dir}/{sample_ids}_trimmed_1.fq",
         "--out2", f"{output_dir}/{sample_ids}_trimmed_2.fq",
         "--detect_adapter_for_pe",
-        "--qualified_quality_phred=30", "--trim_poly_g",
+        f"--qualified_quality_phred={qualified_quality_phred}", "--trim_poly_g",
         "--correction", "--dedup",
+        "--thread", str(fastp_threads),
         "--html", f"{output_dir}/{sample_ids}_trim.html",
         "--json", f"{output_dir}/{sample_ids}_trim.json"
     ]
@@ -44,7 +103,7 @@ def run_fastp_trim(sample_ids, r1_path, r2_path, output_dir, extra_args=None):
     with open(log_file, 'w', encoding='utf-8') as log:
         subprocess.run(fastp_command, stdout=log, stderr=log, check=True)
 
-def run_fastp_merge(sample_ids, output_dir):
+def run_fastp_merge(sample_ids, output_dir, fastp_threads=3):
     """Run fastp merge on trimmed paired-end reads
     This is designed to rely on the output from run_fastp_trim.
     Assumes run_fastp_trim naming convention for input pairs."""
@@ -56,6 +115,7 @@ def run_fastp_merge(sample_ids, output_dir):
         "--out1", f"{output_dir}/{sample_ids}_unmerged_1.fq",
         "--out2", f"{output_dir}/{sample_ids}_unmerged_2.fq",
         "--length_required", "30",
+        "--thread", str(fastp_threads),
         "--html", f"{output_dir}/{sample_ids}_merge.html",
         "--json", f"{output_dir}/{sample_ids}_merge.json"
     ]
@@ -73,12 +133,13 @@ def generate_seqkit_stats(output_dir, stats_output):
     with open(stats_output, "w", encoding="utf-8") as stats_file:
         subprocess.run(seqkit_command, stdout=stats_file, check=True)
 
-def run_fastp_overlap_plot(sample_ids, r1_path, r2_path, output_dir):
+def run_fastp_overlap_plot(sample_ids, r1_path, r2_path, output_dir, fastp_threads=3):
     """Uses fastp merge without merge output to generate overlap plots as an html file."""
 
     command = [
         "fastp", "--in1", r1_path, "--in2", r2_path,
         "--stdout", "--merge", "-A", "-G", "-Q", "-L",
+        "--thread", str(fastp_threads),
         "--json", "/dev/null",
         "--html", os.path.join(output_dir, f"{sample_ids}_overlaps.html")
     ]
@@ -116,13 +177,30 @@ def run_fastp_json_summary(
 
 
 
-def process_sample(sample_id, r1, r2, output_dir, logger, extra_args=None):
+def process_sample(
+    sample_id,
+    r1,
+    r2,
+    output_dir,
+    logger,
+    qualified_quality_phred=30,
+    fastp_threads=3,
+    extra_args=None
+):
     """The function for order of fastp operations per sample."""
 
     logger.info(f"Processing {sample_id}")
-    run_fastp_trim(sample_id, r1, r2, output_dir, extra_args)
-    run_fastp_merge(sample_id, output_dir)
-    run_fastp_overlap_plot(sample_id, r1, r2, output_dir)
+    run_fastp_trim(
+        sample_id,
+        r1,
+        r2,
+        output_dir,
+        qualified_quality_phred=qualified_quality_phred,
+        fastp_threads=fastp_threads,
+        extra_args=extra_args
+    )
+    run_fastp_merge(sample_id, output_dir, fastp_threads=fastp_threads)
+    run_fastp_overlap_plot(sample_id, r1, r2, output_dir, fastp_threads=fastp_threads)
     logger.info(f"Finished processing {sample_id}")
 
 def find_paths_case_insensitive(df, target_names):
@@ -246,6 +324,21 @@ def main(args):
     
     logger = setup_logging(log_file=args.log_file)
 
+    # Parse and validate any extra fastp arguments
+    fastp_extra_args = parse_fastp_extra_args(args.fastp_extra_args)
+    check_fastp_extra_args(fastp_extra_args, logger=logger)
+    if fastp_extra_args:
+        logger.info(f"Extra fastp arguments: {' '.join(fastp_extra_args)}")
+
+    # Report effective parallelism: these multiply, so make the product explicit
+    logger.info(
+        "Parallelism: %d concurrent samples x %d fastp threads = up to %d worker threads",
+        args.threads,
+        args.fastp_threads,
+        args.threads * args.fastp_threads
+    )
+    logger.info("Quality filtering: --qualified_quality_phred %d", args.qualified_quality_phred)
+
     jobs = []
     paired_files = {}
 
@@ -367,7 +460,9 @@ def main(args):
                 r2,
                 args.output_dir,
                 logger,
-                args.fastp_extra_args
+                args.qualified_quality_phred,
+                args.fastp_threads,
+                fastp_extra_args
             )
             for sample_id, r1, r2 in jobs
         ]
@@ -417,8 +512,10 @@ if __name__ == "__main__":
     parser.add_argument("--column_name", required=False, help="Column name in tracking sheet with library names/IDs. Required when using --tracking_sheet.")
     parser.add_argument("--sheet", type=int, default=0, help="(For XLSX input only) Optional sheet index to be used as a tracking sheet. Default is the first sheet (--sheet 0).")
     parser.add_argument("--suffix", required=False, help="Suffix to use to find specific files in the input directory.")
-    parser.add_argument("--threads", type=int, default=4, help="Number of threads for parallel processing.")
-    parser.add_argument("--fastp_extra_args", nargs=argparse.REMAINDER, help="Extra arguments for fastp to happen before merging.")
+    parser.add_argument("--threads", type=int, default=4, help="Number of samples to process in parallel (i.e. concurrent fastp processes). This is NOT the number of threads used by each fastp job - see --fastp_threads. Total worker threads is approximately --threads x --fastp_threads. Default: 4.")
+    parser.add_argument("--fastp_threads", type=int, default=3, help="Number of worker threads used within each fastp process (fastp's -w/--thread). Default: 3, which matches fastp's own default. Set to 1 to make --threads an accurate cap on total CPU use.")
+    parser.add_argument("--qualified_quality_phred", type=int, default=30, help="Phred quality score below which a base is counted as unqualified during trimming (fastp's -q/--qualified_quality_phred). Default: 30. Note fastp's own default is 15.")
+    parser.add_argument("--fastp_extra_args", type=str, required=False, help="Extra arguments passed to the trimming fastp call, given as a single quoted string, e.g. --fastp_extra_args \"--trim_front1 10 --trim_front2 10\". Cannot be used to set -q/--qualified_quality_phred or -w/--thread; use the dedicated arguments instead.")
     parser.add_argument("--log_file", help="Log file path; if not provided, a timestamped `fastp_log` file will be created")
 
     args = parser.parse_args()
@@ -426,10 +523,20 @@ if __name__ == "__main__":
     # Validate argument combinations
     if args.tracking_sheet and not args.column_name:
         parser.error("--column_name is required when using --tracking_sheet")
-    
+
+    if args.threads < 1:
+        parser.error("--threads must be at least 1")
+
+    if args.fastp_threads < 1:
+        parser.error("--fastp_threads must be at least 1")
+
+    # Fail fast on conflicting fastp extras, before any logging or processing
+    check_fastp_extra_args(parse_fastp_extra_args(args.fastp_extra_args), parser=parser)
+
     main(args)
 
 ##Example usage:
-#python fastp_module.py --input_dir raw_reads --output_dir fastp_processed --fastp_extra_args --trim_front1 10 --trim_front2 10
+#python fastp_module.py --input_dir raw_reads --output_dir fastp_processed --fastp_extra_args "--trim_front1 10 --trim_front2 10"
 #python fastp_module.py --tracking_sheet samples.csv --column_name ID --output_dir fastp_processed
 #python fastp_module.py --tracking_sheet samples.csv --column_name ID --input_dir raw_reads --output_dir fastp_processed
+#python fastp_module.py --input_dir raw_reads --output_dir fastp_processed --threads 8 --fastp_threads 1 --qualified_quality_phred 20

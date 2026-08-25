@@ -8,7 +8,8 @@ ITS2 region (ITS3->ITS4). ITS3 primer is a reverse compliment of ITS2 (see White
 
 Custom primer pairs and target regions can be specified via TSV files.
 
-Author: D. Parsons & M. KAMOUYIAROS (@ NHMUK)
+Author: D. Parsons (NHMUK) & M. KAMOUYIAROS (NHMUK)
+Version: 3.0.1
 """
 
 import os
@@ -130,7 +131,7 @@ def load_primers_and_regions(
     return primers, regions
 
 
-def read_tracking_sheet(tracking_sheet_path, column_name='ID', logger=None):
+def read_tracking_sheet(tracking_sheet_path, logger, column_name = "ID"):
     """Read tracking sheet and return set of sample IDs"""
     sample_ids = set()
 
@@ -195,7 +196,7 @@ def count_sequences(fasta_file):
         return 0
 
 
-def run_seqkit_amplicon(input_file, output_file, forward_primer, reverse_primer, logger = None):
+def run_seqkit_amplicon(input_file, output_file, forward_primer, reverse_primer, logger):
     """Run seqkit amplicon for a specific primer pair"""
     cmd = [
         'seqkit', 'amplicon',
@@ -321,7 +322,7 @@ def main():
 
     # Read sample IDs from tracking sheet
     logger.info("Reading sample IDs from tracking sheet: %s", tracking_sheet)
-    all_samples = read_tracking_sheet(tracking_sheet, column_name=column_name)
+    all_samples = read_tracking_sheet(tracking_sheet, logger, column_name=column_name)
 
     if not all_samples:
         logger.error("No sample IDs found in tracking sheet")
@@ -370,7 +371,7 @@ def main():
                 str(output_file),
                 forward_primer,
                 reverse_primer,
-                logger=logger
+                logger
             )
 
             count = count_sequences(output_file)
@@ -397,10 +398,12 @@ def main():
     # Write CSV summary
     csv_file = output_dir / "extraction_summary.csv"
     with open(csv_file, 'w', newline='') as csvfile:
+        # Derive fieldnames from REGIONS so custom --regions_tsv runs are supported
         fieldnames = ['ID']
         for region_name in REGIONS.keys():
-            fieldnames.append(region_name)
-            fieldnames.append(f'{region_name}_path')
+            fieldnames.extend([region_name, f'{region_name}_path'])
+
+
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
 
@@ -456,7 +459,7 @@ def main():
                     report.write(f"  {sample}: {count}\n")
             report.write("\n")
 
-        # Categorize samples
+        # Categorise samples
         failed_samples = []
         complete_samples = []
         its1_only_samples = []
@@ -497,7 +500,7 @@ def main():
 
     for region_name in REGIONS.keys():
         samples_with_seqs = [s for s in sorted(all_samples) if results[s][region_name] > 0]
-        logger.info("\n{region_name} sequences %d:", len(samples_with_seqs))
+        logger.info(f"\n{region_name} sequences %d:", len(samples_with_seqs))
         for sample in samples_with_seqs:
             count = results[sample][region_name]
             if region_name == 'ITS_complete':

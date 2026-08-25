@@ -8,7 +8,7 @@ import pathlib
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from its_fun_tools import load_name_ids, blast_task
-from metahist_tools import xlsx2csv, setup_logging
+from seqpy_tools import xlsx2csv, setup_logging
 
 ### Author: Maria Kamouyiaros & Dan Parsons (NHMUK)
 
