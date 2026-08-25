@@ -14,10 +14,6 @@ The `its-fun-2-map` repository implements a bioinformatics pipeline for extracti
 
 ## Open Improvements
 
-### `fastp_module.py`
-- Q30 quality threshold is hardcoded; expose as `--quality_threshold` argument.
-- The `--threads` help text should clarify that it controls the number of parallel fastp jobs, not the number of threads per job.
-
 ### `UNITEd.py`
 - Samples are processed sequentially. `ThreadPoolExecutor` (already used elsewhere in the pipeline) would reduce wall-clock time for multi-sample runs.
 - The UNITE database path is a required argument on every invocation. A default via an environment variable (`UNITE_DB`) would reduce friction.
