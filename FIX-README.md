@@ -12,13 +12,6 @@ The `its-fun-2-map` repository implements a bioinformatics pipeline for extracti
 
 ---
 
-## Open Bugs
-
-### `its_primer_binding.py` (line 500)
-`logger.info("\n{region_name} sequences %d:", len(samples_with_seqs))` — `{region_name}` is inside a plain string, not an f-string, so it is printed literally rather than interpolated. Fix: add the `f` prefix.
-
----
-
 ## Open Improvements
 
 ### `fastp_module.py`
@@ -41,6 +34,9 @@ The `its-fun-2-map` repository implements a bioinformatics pipeline for extracti
 
 ### `its_primer_binding.py`
 - Processing is sequential per sample. `ThreadPoolExecutor` would reduce wall-clock time for large sample sets.
+- **The sample categorisation block is not region-agnostic.** `failed_samples`, `complete_samples`, `its1_only_samples` and `its2_only_samples` are derived from hardcoded `results[sample]['ITS_complete']`, `['ITS1']` and `['ITS2']` lookups. Because `results` is a nested `defaultdict(int)`, a custom `--regions_tsv` run does not crash — it silently reports every sample as failed. The three closing `logger.info` lines listing output directories are hardcoded to the same three regions. As of v3.0.1 `extraction_summary.csv` is correct for custom regions but `summary_report.txt` is not.
+- `complete_samples`, `its1_only_samples` and `its2_only_samples` are populated but never read. Either report them or remove them.
+- The per-sample processing loop uses bare `print()` rather than the logger, so progress output does not reach the log file.
 
 ### `its_fun_tools.py`
 - `log_and_print()` uses the root logger. It should accept a logger instance as a parameter to match the convention of other functions in the module.
@@ -145,16 +141,25 @@ All per-script bugs listed in the original assessment have been resolved:
 - Fixed `qseqid` header inclusion in `blast_round2.py`
 - Fixed scenario-6 copy-paste and `df$df$` double-prefix in `its_decision_making.R`
 - Fixed R script relative path in `fastp_module.py`
-- Fixed hardcoded CSV fieldnames in `its_primer_binding.py`
 - Removed duplicate `get_ncbi_lineage` from `UNITEd.py`
 - Exposed BWA thread count as `--bwa_threads` in `mapping_module.py`
 - `metahist_tools` package: available via pip, as seqpy-tools
 
-Remaining Phase 1 items:
-- `its_primer_binding.py` line 500: missing f-string prefix (newly identified)
+`its_primer_binding.py` v3.0.0:
+- Fixed `read_tracking_sheet()` logger default of `None` causing `AttributeError` on all three error paths (missing column, `FileNotFoundError`, generic read failure); `logger` is now a required positional and is passed from `main()`
+
+`its_primer_binding.py` v3.0.1:
+- Fixed missing f-string prefix on the per-region `logger.info` call in the console summary block, which printed `{region_name}` literally
+- Derived `extraction_summary.csv` `fieldnames` from `REGIONS.keys()` instead of hardcoding `ITS1`/`ITS2`/`ITS_complete`. Custom `--regions_tsv` runs previously raised `ValueError: dict contains fields not in fieldnames` on the first `writer.writerow()`. Supersedes the earlier "fixed hardcoded CSV fieldnames" entry, which was recorded as complete but was not
+- Fixed `run_seqkit_amplicon()` logger default of `None`; a `CalledProcessError` from seqkit raised `AttributeError` on `logger.error()` instead of logging and returning `False`. `logger` is now a required positional and is passed from `main()`
+
+**No remaining Phase 1 items.**
 
 ### Phase 2 — Open
-- Fix `its_primer_binding.py` line 500 f-string bug
+- Make the `its_primer_binding.py` categorisation block and closing output-directory log lines region-agnostic (currently silently marks all samples as failed under custom `--regions_tsv`)
+- Remove or report the unused `complete_samples` / `its1_only_samples` / `its2_only_samples` lists in `its_primer_binding.py`
+- Replace bare `print()` calls in the `its_primer_binding.py` sample loop with logger calls
+- Confirm whether `metahist_tools` or `seqpy_tools` is the canonical import name and align all scripts
 - Standardise argument naming across BLAST scripts and parsers
 - Expose `--evalue` through `blast_round1.py` and `blast_round2.py`
 - Align `blast_round1_parser.py` and `blast_output_parser.py` argument sets
