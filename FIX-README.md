@@ -35,6 +35,9 @@ One structural problem blocks the pipeline for any new user:
 
 ### `its_primer_binding.py`
 - Processing is sequential per sample. `ThreadPoolExecutor` would reduce wall-clock time for large sample sets.
+- **The sample categorisation block is not region-agnostic.** `failed_samples`, `complete_samples`, `its1_only_samples` and `its2_only_samples` are derived from hardcoded `results[sample]['ITS_complete']`, `['ITS1']` and `['ITS2']` lookups. Because `results` is a nested `defaultdict(int)`, a custom `--regions_tsv` run does not crash — it silently reports every sample as failed. The three closing `logger.info` lines listing output directories are hardcoded to the same three regions. As of v3.0.1 `extraction_summary.csv` is correct for custom regions but `summary_report.txt` is not.
+- `complete_samples`, `its1_only_samples` and `its2_only_samples` are populated but never read. Either report them or remove them.
+- The per-sample processing loop uses bare `print()` rather than the logger, so progress output does not reach the log file.
 
 ### `its_fun_tools.py`
 - `log_and_print()` uses the root logger. It should accept a logger instance as a parameter to match the convention of other functions in the module.
@@ -136,16 +139,24 @@ All per-script bugs have been resolved:
 - Fixed `qseqid` header inclusion in `blast_round2.py`
 - Fixed scenario-6 copy-paste and `df$df$` double-prefix in `its_decision_making.R`
 - Fixed R script relative path in `fastp_module.py`
-- Fixed hardcoded CSV fieldnames in `its_primer_binding.py` (dynamic from `REGIONS.keys()`)
-- Fixed `its_primer_binding.py` line 503 f-string prefix (was a plain string, now interpolates `{region_name}` correctly)
 - Removed duplicate `get_ncbi_lineage` from `UNITEd.py`
 - Exposed BWA thread count as `--bwa_threads` in `mapping_module.py`
-- Replaced all `from metahist_tools import ...` with `from seqpy_tools import ...` across all 11 scripts
-- Added `seqpy-tools` to the pip section of `its-fun-2-map.yaml`
-- Exposed `--quality_threshold` (default 30) and `--fastp_threads` (default 3) in `fastp_module.py`; clarified `--threads` help text to describe parallel jobs
+- Replaced all `from metahist_tools import ...` with `from seqpy_tools import ...` across all 11 scripts; added `seqpy-tools` to the pip section of `its-fun-2-map.yaml`
+- Exposed `--quality_threshold` (default 30) and `--fastp_threads` (default 3) in `fastp_module.py`; clarified `--threads` help text to describe parallel jobs not threads per job
 - Added `its_a_summary_compiler.py` (Step 12 — previously missing)
 
+`its_primer_binding.py` v3.0.0:
+- Fixed `read_tracking_sheet()` logger default of `None` causing `AttributeError` on all three error paths (missing column, `FileNotFoundError`, generic read failure); `logger` is now a required positional and is passed from `main()`
+
+`its_primer_binding.py` v3.0.1:
+- Fixed missing f-string prefix on the per-region `logger.info` call in the console summary block, which printed `{region_name}` literally
+- Derived `extraction_summary.csv` `fieldnames` from `REGIONS.keys()` instead of hardcoding `ITS1`/`ITS2`/`ITS_complete`. Custom `--regions_tsv` runs previously raised `ValueError: dict contains fields not in fieldnames` on the first `writer.writerow()`
+- Fixed `run_seqkit_amplicon()` logger default of `None`; a `CalledProcessError` from seqkit raised `AttributeError` on `logger.error()` instead of logging and returning `False`. `logger` is now a required positional and is passed from `main()`
+
 ### Phase 2 — Open
+- Make the `its_primer_binding.py` categorisation block and closing output-directory log lines region-agnostic (currently silently marks all samples as failed under custom `--regions_tsv`)
+- Remove or report the unused `complete_samples` / `its1_only_samples` / `its2_only_samples` lists in `its_primer_binding.py`
+- Replace bare `print()` calls in the `its_primer_binding.py` sample loop with logger calls
 - Expose `--evalue` through `blast_round1.py` and `blast_round2.py`
 - Add `--evalue_cutoff` and `--allow_all` to `blast_output_parser.py` to match `blast_round1_parser.py`
 - Add per-sample warning log in `blast_output_parser.py` when no BLAST result file exists for a sample
