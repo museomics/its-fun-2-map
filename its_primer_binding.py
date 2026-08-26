@@ -352,12 +352,12 @@ def main():
         fasta_file = find_fasta_for_sample(sample_id, input_dir)
 
         if fasta_file is None:
-            print(f"WARNING: No FASTA file found for sample: {sample_id}")
+            logger.warning("No FASTA file found for sample: %s", sample_id)
             samples_without_fasta.add(sample_id)
             continue
 
         samples_with_fasta.add(sample_id)
-        print(f"\nProcessing sample {sample_id}: {fasta_file}")
+        logger.info("Processing sample %s: %s", sample_id, fasta_file)
 
         # Run amplicon extraction for each region
         for region_name, (forward_key, reverse_key) in REGIONS.items():
@@ -375,7 +375,7 @@ def main():
             )
 
             count = count_sequences(output_file)
-            print(f"  {region_name}: {count} sequences")
+            logger.info("  %s: %d sequences", region_name, count)
 
     # Report samples without FASTA files
     if samples_without_fasta:
@@ -402,6 +402,7 @@ def main():
         fieldnames = ['ID']
         for region_name in REGIONS.keys():
             fieldnames.extend([region_name, f'{region_name}_path'])
+
 
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
@@ -486,6 +487,28 @@ def main():
             for sample in failed_samples:
                 report.write(f"  {sample}\n")
 
+        # Report categorised samples
+        report.write(f"\nSamples with complete ITS ({len(complete_samples)}):\n")
+        if not complete_samples:
+            report.write("  (none)\n")
+        else:
+            for sample in complete_samples:
+                report.write(f"  {sample}\n")
+
+        report.write(f"\nSamples with ITS1 only ({len(its1_only_samples)}):\n")
+        if not its1_only_samples:
+            report.write("  (none)\n")
+        else:
+            for sample in its1_only_samples:
+                report.write(f"  {sample}\n")
+
+        report.write(f"\nSamples with ITS2 only ({len(its2_only_samples)}):\n")
+        if not its2_only_samples:
+            report.write("  (none)\n")
+        else:
+            for sample in its2_only_samples:
+                report.write(f"  {sample}\n")
+
         # Report samples without FASTA files
         if samples_without_fasta:
             report.write(f"\nSamples without FASTA files ({len(samples_without_fasta)}):\n")
@@ -512,6 +535,27 @@ def main():
         logger.info("  (none)")
     else:
         for sample in failed_samples:
+            logger.info("  %s", sample)
+
+    logger.info("\nSamples with complete ITS (%d):", len(complete_samples))
+    if not complete_samples:
+        logger.info("  (none)")
+    else:
+        for sample in complete_samples:
+            logger.info("  %s", sample)
+
+    logger.info("\nSamples with ITS1 only (%d):", len(its1_only_samples))
+    if not its1_only_samples:
+        logger.info("  (none)")
+    else:
+        for sample in its1_only_samples:
+            logger.info("  %s", sample)
+
+    logger.info("\nSamples with ITS2 only (%d):", len(its2_only_samples))
+    if not its2_only_samples:
+        logger.info("  (none)")
+    else:
+        for sample in its2_only_samples:
             logger.info("  %s", sample)
 
     logger.info(f"\nJob completed at {datetime.now()}")
