@@ -28,7 +28,7 @@ def find_tsv_for_id(blast_dir, sample_id):
     return matches  # list of matching TSVs
 
 
-def run_seqkit_and_blast(tracking_sheet, column_name,query_dir, blast_dir, database_file, output_dir, log_file="blast_round2.log", prefix=None, max_workers=4, makeblastdb=False):
+def run_seqkit_and_blast(tracking_sheet, column_name, query_dir, blast_dir, database_file, output_dir, log_file="blast_round2.log", prefix=None, max_workers=4, makeblastdb=False, evalue="1e-5"):
 
     os.makedirs(output_dir, exist_ok=True)
     tmp_fasta_dir = os.path.join(output_dir, "tmp")
@@ -71,7 +71,7 @@ def run_seqkit_and_blast(tracking_sheet, column_name,query_dir, blast_dir, datab
             # Extract unique headers from TSV
             unique_ids_file = os.path.join(tmp_fasta_dir, f"{name_id}_unique_headers.txt")
             with open(tsv_file) as f, open(unique_ids_file, "w") as out_f:
-                ids = {line.split("\t")[0] for line in f if line.strip()}
+                ids = {line.split("\t")[0] for line in f if line.strip() and line.split("\t")[0] != "qseqid"}
                 out_f.write("\n".join(sorted(ids)))
 
             # Run extraction + BLAST for each scaffold
@@ -102,6 +102,7 @@ def run_seqkit_and_blast(tracking_sheet, column_name,query_dir, blast_dir, datab
                         output_dir,
                         name_id,
                         prefix,
+                        evalue,
                     )
                 )
 
@@ -128,6 +129,7 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir", default="blast_results", help="Directory to store BLAST output files")
     parser.add_argument("--prefix", required=False, help="Optional prefix to add to output files")
     parser.add_argument("--max_workers", type=int, default=4, help="Maximum parallel workers")
+    parser.add_argument("--evalue", default="1e-5", help="E-value threshold passed to blastn (default: 1e-5)")
     parser.add_argument("--log_file", help="Log file path; if not provided, a timestamped `blast2_log` file will be created")
 
     args = parser.parse_args()
@@ -142,5 +144,6 @@ if __name__ == "__main__":
         output_dir=args.output_dir,
         prefix=args.prefix,
         max_workers=args.max_workers,
-        log_file=args.log_file
+        log_file=args.log_file,
+        evalue=args.evalue,
     )
