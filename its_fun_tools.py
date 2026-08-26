@@ -7,12 +7,15 @@ import pandas as pd
 import pathlib
 import shutil
 import logging
+import time
+import random
+import urllib.error
 from Bio import Entrez
 from seqpy_tools import xlsx2csv
 
 #### Helper functions used across scripts
 
-def blast_task(scaff_path, database_file, output_dir, name_id, prefix=None):
+def blast_task(scaff_path, database_file, output_dir, name_id, prefix=None, evalue="1e-10"):
     parent_dir = os.path.basename(os.path.dirname(scaff_path))
     # Use name_id as prefix if no prefix provided
     file_prefix = f"{prefix}_" if prefix else ""
@@ -25,18 +28,19 @@ def blast_task(scaff_path, database_file, output_dir, name_id, prefix=None):
         "-query", scaff_path,
         "-db", database_file,
         "-outfmt", "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore",
-        "-evalue", "1e-10",
+        "-evalue", str(evalue),
         "-out", output_path
     ], check=True)
 
 
 
 
-def log_and_print(message, level='info'):
+def log_and_print(message, level='info', logger=None):
     """
     Log a message and print it to console.
     """
-    logger = logging.getLogger()
+    if logger is None:
+        logger = logging.getLogger()
     if level == 'info':
         logger.info(message)
     elif level == 'error':
@@ -61,8 +65,7 @@ def load_name_ids(tracking_sheet, column_name, sheet=None):
         df = pd.read_csv(tracking_sheet)
     else:
         raise ValueError(f"Unsupported tracking sheet format: {tracking_sheet}")
-    name_ids = df[column_name].dropna().astype(str).tolist()
-    return name_ids
+    return df[column_name].dropna().astype(str).tolist()
 
 
 def get_ncbi_lineage(taxid, email, logger, api_key=None):
@@ -132,4 +135,3 @@ def get_ncbi_lineage(taxid, email, logger, api_key=None):
                 raise
     
     raise Exception(f"Failed to get lineage for {taxid}")
-
