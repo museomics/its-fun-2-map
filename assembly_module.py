@@ -10,7 +10,7 @@ from seqpy_tools import setup_logging
 
 #### Author: Maria Kamouyiaros & Daniel Parsons @ NHMUK
 #### Date: 2025-08-04
-#### VERSION: 7.3.0
+#### VERSION: 7.3.1
 
 def get_scaffold_metrics(scaffolds_file):
     """
@@ -483,8 +483,10 @@ def main(args):
     # Write CSV summary if requested
     if args.summary_csv:
         logger.info("")
-        write_summary_csv(jobs, sample_paths, sample_metrics, 
+        write_summary_csv(jobs, sample_paths, sample_metrics,
                          args.output_dir, args.summary_csv, logger)
+    else:
+        logger.info("--summary_csv not specified, skipping CSV summary.")
 
 
 if __name__ == "__main__":
