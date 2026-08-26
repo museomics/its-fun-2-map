@@ -12,7 +12,7 @@ from seqpy_tools import xlsx2csv, setup_logging
 
 ### Author: Maria Kamouyiaros & Dan Parsons (NHMUK)
 
-def run_blast_pipeline(database_file, makeblastdb, query_dir, output_dir, prefix, name_ids, max_workers=4, log_file=None):
+def run_blast_pipeline(database_file, makeblastdb, query_dir, output_dir, prefix, name_ids, max_workers=4, log_file=None, evalue="1e-5"):
     os.makedirs(output_dir, exist_ok=True)
 
     if log_file is None:
@@ -41,7 +41,7 @@ def run_blast_pipeline(database_file, makeblastdb, query_dir, output_dir, prefix
             if matched_scaffolds:
                 logger.info(f"Found scaffolds.fasta for {name_id}")
                 for scaff_path in matched_scaffolds:
-                    tasks.append(executor.submit(blast_task, scaff_path, database_file, output_dir, name_id, prefix))
+                    tasks.append(executor.submit(blast_task, scaff_path, database_file, output_dir, name_id, prefix, evalue))
             else:
                 logger.warning(f"[SKIP] No scaffolds.fasta found for {name_id} - assembly may have failed")
                 skipped_samples.append(name_id)
@@ -65,6 +65,7 @@ if __name__ == "__main__":
     parser.add_argument("--column_name", required=True, help="Column name in tracking sheet with library names")
     parser.add_argument("--prefix", required=False, help="(Optional) Prefix to add to output files")
     parser.add_argument("--max_workers", type=int, default=4, help="Maximum parallel workers")
+    parser.add_argument("--evalue", default="1e-5", help="E-value threshold passed to blastn (default: 1e-5)")
     parser.add_argument("--log_file", help="Log file path; if not provided, a timestamped `blast1_log` file will be created")
 
     args = parser.parse_args()
@@ -81,5 +82,6 @@ if __name__ == "__main__":
         prefix=args.prefix,
         name_ids=name_ids,
         max_workers=args.max_workers,
-        log_file=args.log_file
+        log_file=args.log_file,
+        evalue=args.evalue,
     )

@@ -154,14 +154,14 @@ All per-script bugs have been resolved:
 - Fixed `run_seqkit_amplicon()` logger default of `None`; a `CalledProcessError` from seqkit raised `AttributeError` on `logger.error()` instead of logging and returning `False`. `logger` is now a required positional and is passed from `main()`
 - Added per-sample warning in `blast_output_parser.py` when no BLAST result file found for a sample in the taxonomy mapping
 - Added info log in `assembly_module.py` when `--summary_csv` is omitted
+- Added per-sample warning in `blast_round1_parser.py` when no BLAST result file found for a sample in the taxonomy mapping
+- Exposed `--evalue` (default `1e-5`) through `blast_round1.py` and `blast_round2.py`; wired through to `blast_task()` in `its_fun_tools.py`
 
 ### Phase 2 — Open
 - Make the `its_primer_binding.py` categorisation block and closing output-directory log lines region-agnostic (currently silently marks all samples as failed under custom `--regions_tsv`)
 - Remove or report the unused `complete_samples` / `its1_only_samples` / `its2_only_samples` lists in `its_primer_binding.py`
 - Replace bare `print()` calls in the `its_primer_binding.py` sample loop with logger calls
-- Expose `--evalue` through `blast_round1.py` and `blast_round2.py`
 - Add `--evalue_cutoff` and `--allow_all` to `blast_output_parser.py` to match `blast_round1_parser.py`
-- Add `ThreadPoolExecutor` to `its_primer_binding.py` and `UNITEd.py`
 - Add `UNITE_DB` environment variable default to `UNITEd.py`
 - Standardise `log_and_print()` to accept a logger instance
 - Write `tutorial.md` content with worked examples
@@ -175,6 +175,10 @@ All per-script bugs have been resolved:
 - Define `config.yaml` schema and output directory layout convention
 - Write `Snakefile` with one rule per pipeline step
 - Write `pipeline.sh` as a thin wrapper over `snakemake`
+
+### Stretch Goals / Future Development
+- Add `ThreadPoolExecutor` to `its_primer_binding.py` — extract a `process_sample()` function covering file lookup + seqkit subprocess calls per region; collect results with `as_completed`; `args.threads` controls worker count
+- Add `ThreadPoolExecutor` to `UNITEd.py` — collect all sample rows first, then fan out NCBI Entrez calls; limit `max_workers` to 2 without an API key, ~4 with one to respect rate limits; `unite_index` is read-only so safe to share across threads
 
 ---
 
