@@ -487,6 +487,28 @@ def main():
             for sample in failed_samples:
                 report.write(f"  {sample}\n")
 
+        # Report categorised samples
+        report.write(f"\nSamples with complete ITS ({len(complete_samples)}):\n")
+        if not complete_samples:
+            report.write("  (none)\n")
+        else:
+            for sample in complete_samples:
+                report.write(f"  {sample}\n")
+
+        report.write(f"\nSamples with ITS1 only ({len(its1_only_samples)}):\n")
+        if not its1_only_samples:
+            report.write("  (none)\n")
+        else:
+            for sample in its1_only_samples:
+                report.write(f"  {sample}\n")
+
+        report.write(f"\nSamples with ITS2 only ({len(its2_only_samples)}):\n")
+        if not its2_only_samples:
+            report.write("  (none)\n")
+        else:
+            for sample in its2_only_samples:
+                report.write(f"  {sample}\n")
+
         # Report samples without FASTA files
         if samples_without_fasta:
             report.write(f"\nSamples without FASTA files ({len(samples_without_fasta)}):\n")
@@ -513,6 +535,27 @@ def main():
         logger.info("  (none)")
     else:
         for sample in failed_samples:
+            logger.info("  %s", sample)
+
+    logger.info("\nSamples with complete ITS (%d):", len(complete_samples))
+    if not complete_samples:
+        logger.info("  (none)")
+    else:
+        for sample in complete_samples:
+            logger.info("  %s", sample)
+
+    logger.info("\nSamples with ITS1 only (%d):", len(its1_only_samples))
+    if not its1_only_samples:
+        logger.info("  (none)")
+    else:
+        for sample in its1_only_samples:
+            logger.info("  %s", sample)
+
+    logger.info("\nSamples with ITS2 only (%d):", len(its2_only_samples))
+    if not its2_only_samples:
+        logger.info("  (none)")
+    else:
+        for sample in its2_only_samples:
             logger.info("  %s", sample)
 
     logger.info(f"\nJob completed at {datetime.now()}")

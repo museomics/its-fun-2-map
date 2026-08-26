@@ -35,11 +35,12 @@ def blast_task(scaff_path, database_file, output_dir, name_id, prefix=None, eval
 
 
 
-def log_and_print(message, level='info'):
+def log_and_print(message, level='info', logger=None):
     """
     Log a message and print it to console.
     """
-    logger = logging.getLogger()
+    if logger is None:
+        logger = logging.getLogger()
     if level == 'info':
         logger.info(message)
     elif level == 'error':

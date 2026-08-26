@@ -156,14 +156,14 @@ All per-script bugs have been resolved:
 - Added info log in `assembly_module.py` when `--summary_csv` is omitted
 - Added per-sample warning in `blast_round1_parser.py` when no BLAST result file found for a sample in the taxonomy mapping
 - Exposed `--evalue` (default `1e-5`) through `blast_round1.py` and `blast_round2.py`; wired through to `blast_task()` in `its_fun_tools.py`
+- Reported `complete_samples`, `its1_only_samples`, `its2_only_samples` in `its_primer_binding.py` summary report and console log (previously populated but silently discarded)
+- Standardised `log_and_print()` in `its_fun_tools.py` to accept an optional `logger` instance (falls back to root logger when omitted — fully backward-compatible)
+- Confirmed no bare `print()` calls exist in `its_primer_binding.py` sample loop; all output goes through logger
 
 ### Phase 2 — Open
 - Make the `its_primer_binding.py` categorisation block and closing output-directory log lines region-agnostic (currently silently marks all samples as failed under custom `--regions_tsv`)
-- Remove or report the unused `complete_samples` / `its1_only_samples` / `its2_only_samples` lists in `its_primer_binding.py`
-- Replace bare `print()` calls in the `its_primer_binding.py` sample loop with logger calls
 - Add `--evalue_cutoff` and `--allow_all` to `blast_output_parser.py` to match `blast_round1_parser.py`
 - Add `UNITE_DB` environment variable default to `UNITEd.py`
-- Standardise `log_and_print()` to accept a logger instance
 - Write `tutorial.md` content with worked examples
 
 ### Phase 3 — Open
