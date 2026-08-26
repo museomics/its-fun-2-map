@@ -301,12 +301,15 @@ def create_taxonomy_validation_summary(output_dir, taxonomy_mapping, assembly_di
     
     summary_results = []
     processed_count = 0
-    
+    matched_ids = set()
+
     # For each parsed file, extract expected taxonomy and compare with BLAST hits
     for parsed_file in sorted(parsed_files):
         # Extract original filename to get expected taxonomy
         original_name = re.sub(r'-(top_\d+_hits|all_hits)$', '', parsed_file.stem) + '.tsv'
         expected_family, expected_full_taxonomy, matched_id = get_expected_taxonomy_from_filename(original_name, taxonomy_mapping)
+        if matched_id:
+            matched_ids.add(matched_id)
         
         log_and_print(f"  Processing {parsed_file.name}...")
         
@@ -705,6 +708,11 @@ def create_taxonomy_validation_summary(output_dir, taxonomy_mapping, assembly_di
 
         summary_results.append(result)
         
+    # Warn about samples in taxonomy_mapping with no parsed BLAST file
+    for sample_id in sorted(taxonomy_mapping.keys()):
+        if sample_id not in matched_ids:
+            log_and_print(f"  -> No BLAST result file found for sample {sample_id}", level='warning')
+
     # Create summary CSV
     summary_file = Path(output_dir) / summary_csv  # Use custom filename
     summary_df = pd.DataFrame(summary_results)
