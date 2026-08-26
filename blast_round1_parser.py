@@ -10,7 +10,7 @@ from collections import defaultdict
 from datetime import datetime
 from seqpy_tools import setup_logging
 
-# BLAST output parser v3.0.0
+# BLAST round1 parser v3.0.0
 # Processes BLAST TSV files (outfmt 6) to extract best candidate contig based on blast results.
 # Contigs are filtered based on minimum length and percent identity, as well as e-value cutoff.
 # Outputs a new TSV file with filtered results.
@@ -314,6 +314,7 @@ def process_blast_results(input_dir, output_dir, taxonomy_mapping, assembly_dir,
 
     summary_results = []
     processed_count = 0
+    matched_ids = set()
 
     # For each parsed file, extract expected taxonomy and compare with BLAST hits
     for parsed_file in sorted(parsed_files):
@@ -324,6 +325,8 @@ def process_blast_results(input_dir, output_dir, taxonomy_mapping, assembly_dir,
             parsed_file.stem) + '.tsv'
         expected_family, expected_full_taxonomy, matched_id = get_expected_taxonomy_from_filename(
             original_name, taxonomy_mapping, level="family")
+        if matched_id:
+            matched_ids.add(matched_id)
         
         # Get all taxonomy levels for this sample
         expected_family = None
@@ -480,6 +483,11 @@ def process_blast_results(input_dir, output_dir, taxonomy_mapping, assembly_dir,
 
         summary_results.append(result)
         processed_count += 1
+
+    # Warn about samples in taxonomy_mapping with no parsed BLAST file
+    for sample_id in sorted(taxonomy_mapping.keys()):
+        if sample_id not in matched_ids:
+            logger.warning("  -> No BLAST result file found for sample %s", sample_id)
 
     # Create summary CSV
     summary_file = Path(output_dir) / 'blast_validation_summary.csv'
