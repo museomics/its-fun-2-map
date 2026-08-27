@@ -159,11 +159,9 @@ All per-script bugs have been resolved:
 - Reported `complete_samples`, `its1_only_samples`, `its2_only_samples` in `its_primer_binding.py` summary report and console log (previously populated but silently discarded)
 - Standardised `log_and_print()` in `its_fun_tools.py` to accept an optional `logger` instance (falls back to root logger when omitted — fully backward-compatible)
 - Confirmed no bare `print()` calls exist in `its_primer_binding.py` sample loop; all output goes through logger
+- Made `its_primer_binding.py` categorisation block and closing directory log lines region-agnostic: failed detection now checks all `REGIONS` keys; ITS-specific sub-categories (`complete_samples`, `its1_only_samples`, `its2_only_samples`) are computed and reported only when running with the default ITS regions (`ITS_complete`, `ITS1`, `ITS2` all present); closing output-directory log lines now iterate over `REGIONS` instead of hardcoding ITS paths
 
 ### Phase 2 — Open
-- Make the `its_primer_binding.py` categorisation block and closing output-directory log lines region-agnostic (currently silently marks all samples as failed under custom `--regions_tsv`)
-- Add `--evalue_cutoff` and `--allow_all` to `blast_output_parser.py` to match `blast_round1_parser.py`
-- Add `UNITE_DB` environment variable default to `UNITEd.py`
 - Write `tutorial.md` content with worked examples
 
 ### Phase 3 — Open
@@ -179,6 +177,8 @@ All per-script bugs have been resolved:
 ### Stretch Goals / Future Development
 - Add `ThreadPoolExecutor` to `its_primer_binding.py` — extract a `process_sample()` function covering file lookup + seqkit subprocess calls per region; collect results with `as_completed`; `args.threads` controls worker count
 - Add `ThreadPoolExecutor` to `UNITEd.py` — collect all sample rows first, then fan out NCBI Entrez calls; limit `max_workers` to 2 without an API key, ~4 with one to respect rate limits; `unite_index` is read-only so safe to share across threads
+- Add `--evalue_cutoff` and `--allow_all` to `blast_output_parser.py` to match `blast_round1_parser.py` interface (unifies parameterisation across both BLAST parsing steps; required for a shared workflow config)
+- Add `UNITE_DB` environment variable default to `UNITEd.py` (removes need to pass `--unite_db` on every invocation when the path is stable)
 
 ---
 
