@@ -542,7 +542,8 @@ def main():
     logger.info("Path columns available: %s", paths_cols)
  
     # Assess for which sequences/contigs can be taken forward for submission
-    r['source']('its_decision_making.R')
+    r_script = Path(__file__).parent / 'its_decision_making.R'
+    r['source'](str(r_script))
     decision_making = r['its_outcome']
 
     # normalise column types (expected mixture of float and str for str columns with NaN)

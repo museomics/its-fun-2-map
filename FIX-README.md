@@ -24,7 +24,7 @@ One structural problem blocks the pipeline for any new user:
 - The 3-stage SPAdes fallback strategy (full assembly → contigs only → k55 forced) is non-obvious to anyone reading the script cold. It should be documented with an inline comment explaining what failure condition triggers each fallback and why k55 is the last resort.
 
 ### `its_decision_making.R`
-- The file has no `if (!interactive())` block, no `commandArgs()`, and no `optparse`/`argparse` usage. It can only be sourced interactively — it cannot be called by a workflow manager as a subprocess via `Rscript`. A CLI entry point is needed (tracked in Phase 3).
+- The file defines a single function (`its_outcome()`) that is sourced at runtime by `its_a_summary_compiler.py` via rpy2 — no standalone CLI is needed for the current pipeline. A CLI entry point would only be required if `its_decision_making.R` were invoked as a direct `Rscript` subprocess (e.g. in an alternative Nextflow pipeline), which is a stretch goal.
 
 ### `tutorial.md`
 - Contains only empty section headers. Needs worked examples with real command-line invocations for each pipeline step (tracked in Phase 2).
@@ -105,7 +105,7 @@ This delivers:
 
 2. **Standardised output directory layout.** There is no declared convention for how step N's output directory maps to step N+1's input directory. A fixed subdirectory layout under a single top-level directory (e.g. `01_qc/`, `02_reference/`, `03_mapping/`, `04_assembly/`, `05_blast_round1/`, etc.) would allow a Snakefile to wire steps together automatically.
 
-3. **`its_decision_making.R` CLI entry point.** Snakemake and Nextflow invoke scripts as subprocesses via `Rscript`. The current file has no argument parsing — it cannot be called from a workflow rule. Add a CLI entry point accepting at minimum `--input_csv` and `--output_csv`.
+3. **`its_decision_making.R` path resolution.** `its_a_summary_compiler.py` currently sources the R file with a bare filename (`r['source']('its_decision_making.R')`), which relies on the R working directory matching the repo root. Fixed in Phase 1 to use `Path(__file__).parent / 'its_decision_making.R'`, matching the pattern already applied to `fastp_module.py`.
 
 4. **BLAST parser interface parity.** `blast_round1_parser.py` has `--evalue_cutoff` and `--allow_all`; `blast_output_parser.py` does not. A workflow config cannot share a single parameterisation for both parsing steps with diverged interfaces. Unify them or document the distinction explicitly.
 
@@ -143,6 +143,7 @@ All per-script bugs have been resolved:
 - Standardised `log_and_print()` in `its_fun_tools.py` to accept an optional `logger` instance (falls back to root logger when omitted — fully backward-compatible)
 - Confirmed no bare `print()` calls exist in `its_primer_binding.py` sample loop; all output goes through logger
 - Made `its_primer_binding.py` categorisation block and closing directory log lines region-agnostic: failed detection now checks all `REGIONS` keys; ITS-specific sub-categories (`complete_samples`, `its1_only_samples`, `its2_only_samples`) are computed and reported only when running with the default ITS regions (`ITS_complete`, `ITS1`, `ITS2` all present); closing output-directory log lines now iterate over `REGIONS` instead of hardcoding ITS paths
+- Fixed `its_decision_making.R` path resolution in `its_a_summary_compiler.py`: bare `r['source']('its_decision_making.R')` replaced with `Path(__file__).parent / 'its_decision_making.R'`, matching the pattern already applied to `fastp_module.py`
 
 ### Phase 2 — Open
 - Write `tutorial.md` content with worked examples
@@ -152,7 +153,6 @@ All per-script bugs have been resolved:
 - Write `pyproject.toml` with metadata, dependencies, and `console_scripts` entry points
 - Declare `parse_fastp_json.R` and `its_decision_making.R` as package data
 - Ensure `setup_logging()` is only called inside `main()`
-- Add CLI entry point to `its_decision_making.R`
 - Define `config.yaml` schema and output directory layout convention
 - Write `Snakefile` with one rule per pipeline step
 - Write `pipeline.sh` as a thin wrapper over `snakemake`
@@ -162,6 +162,7 @@ All per-script bugs have been resolved:
 - Add `ThreadPoolExecutor` to `UNITEd.py` — collect all sample rows first, then fan out NCBI Entrez calls; limit `max_workers` to 2 without an API key, ~4 with one to respect rate limits; `unite_index` is read-only so safe to share across threads
 - Add `--evalue_cutoff` and `--allow_all` to `blast_output_parser.py` to match `blast_round1_parser.py` interface (unifies parameterisation across both BLAST parsing steps; required for a shared workflow config)
 - Add `UNITE_DB` environment variable default to `UNITEd.py` (removes need to pass `--unite_db` on every invocation when the path is stable)
+- Add CLI entry point to `its_decision_making.R` (only needed if calling it as a direct `Rscript` subprocess outside of `its_a_summary_compiler.py`, e.g. in a Nextflow alternative)
 
 ---
 
