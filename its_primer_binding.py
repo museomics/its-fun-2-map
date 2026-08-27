@@ -459,55 +459,59 @@ def main():
                     report.write(f"  {sample}: {count}\n")
             report.write("\n")
 
-        # Categorise samples
-        failed_samples = []
+        # Categorise samples — failed detection uses actual region keys
+        failed_samples = [
+            sample for sample in sorted(all_samples)
+            if all(results[sample][r] == 0 for r in REGIONS)
+        ]
+
+        # ITS-specific sub-categorisation (only meaningful with the default ITS regions)
+        its_mode = {'ITS_complete', 'ITS1', 'ITS2'}.issubset(REGIONS)
         complete_samples = []
         its1_only_samples = []
         its2_only_samples = []
 
-        for sample in sorted(all_samples):
-            complete_count = results[sample]['ITS_complete']
-            its1_count = results[sample]['ITS1']
-            its2_count = results[sample]['ITS2']
-
-            if complete_count == 0 and its1_count == 0 and its2_count == 0:
-                failed_samples.append(sample)
-            elif complete_count > 0:
-                complete_samples.append(sample)
-            elif its1_count > 0 and its2_count == 0:
-                its1_only_samples.append(sample)
-            elif its2_count > 0 and its1_count == 0:
-                its2_only_samples.append(sample)
+        if its_mode:
+            for sample in sorted(all_samples):
+                if sample in failed_samples:
+                    continue
+                if results[sample]['ITS_complete'] > 0:
+                    complete_samples.append(sample)
+                elif results[sample]['ITS1'] > 0 and results[sample]['ITS2'] == 0:
+                    its1_only_samples.append(sample)
+                elif results[sample]['ITS2'] > 0 and results[sample]['ITS1'] == 0:
+                    its2_only_samples.append(sample)
 
         # Report failed samples
-        report.write(f"Samples with no ITS regions extracted ({len(failed_samples)}):\n")
+        report.write(f"Samples with no regions extracted ({len(failed_samples)}):\n")
         if not failed_samples:
             report.write("  (none)\n")
         else:
             for sample in failed_samples:
                 report.write(f"  {sample}\n")
 
-        # Report categorised samples
-        report.write(f"\nSamples with complete ITS ({len(complete_samples)}):\n")
-        if not complete_samples:
-            report.write("  (none)\n")
-        else:
-            for sample in complete_samples:
-                report.write(f"  {sample}\n")
+        # Report ITS-specific sub-categorisation
+        if its_mode:
+            report.write(f"\nSamples with complete ITS ({len(complete_samples)}):\n")
+            if not complete_samples:
+                report.write("  (none)\n")
+            else:
+                for sample in complete_samples:
+                    report.write(f"  {sample}\n")
 
-        report.write(f"\nSamples with ITS1 only ({len(its1_only_samples)}):\n")
-        if not its1_only_samples:
-            report.write("  (none)\n")
-        else:
-            for sample in its1_only_samples:
-                report.write(f"  {sample}\n")
+            report.write(f"\nSamples with ITS1 only ({len(its1_only_samples)}):\n")
+            if not its1_only_samples:
+                report.write("  (none)\n")
+            else:
+                for sample in its1_only_samples:
+                    report.write(f"  {sample}\n")
 
-        report.write(f"\nSamples with ITS2 only ({len(its2_only_samples)}):\n")
-        if not its2_only_samples:
-            report.write("  (none)\n")
-        else:
-            for sample in its2_only_samples:
-                report.write(f"  {sample}\n")
+            report.write(f"\nSamples with ITS2 only ({len(its2_only_samples)}):\n")
+            if not its2_only_samples:
+                report.write("  (none)\n")
+            else:
+                for sample in its2_only_samples:
+                    report.write(f"  {sample}\n")
 
         # Report samples without FASTA files
         if samples_without_fasta:
@@ -530,41 +534,41 @@ def main():
             else:
                 logger.info("  %s: %d", sample, count)
 
-    logger.info("\nSamples with no ITS regions extracted (%d):", len(failed_samples))
+    logger.info("\nSamples with no regions extracted (%d):", len(failed_samples))
     if not failed_samples:
         logger.info("  (none)")
     else:
         for sample in failed_samples:
             logger.info("  %s", sample)
 
-    logger.info("\nSamples with complete ITS (%d):", len(complete_samples))
-    if not complete_samples:
-        logger.info("  (none)")
-    else:
-        for sample in complete_samples:
-            logger.info("  %s", sample)
+    if its_mode:
+        logger.info("\nSamples with complete ITS (%d):", len(complete_samples))
+        if not complete_samples:
+            logger.info("  (none)")
+        else:
+            for sample in complete_samples:
+                logger.info("  %s", sample)
 
-    logger.info("\nSamples with ITS1 only (%d):", len(its1_only_samples))
-    if not its1_only_samples:
-        logger.info("  (none)")
-    else:
-        for sample in its1_only_samples:
-            logger.info("  %s", sample)
+        logger.info("\nSamples with ITS1 only (%d):", len(its1_only_samples))
+        if not its1_only_samples:
+            logger.info("  (none)")
+        else:
+            for sample in its1_only_samples:
+                logger.info("  %s", sample)
 
-    logger.info("\nSamples with ITS2 only (%d):", len(its2_only_samples))
-    if not its2_only_samples:
-        logger.info("  (none)")
-    else:
-        for sample in its2_only_samples:
-            logger.info("  %s", sample)
+        logger.info("\nSamples with ITS2 only (%d):", len(its2_only_samples))
+        if not its2_only_samples:
+            logger.info("  (none)")
+        else:
+            for sample in its2_only_samples:
+                logger.info("  %s", sample)
 
     logger.info(f"\nJob completed at {datetime.now()}")
     logger.info(f"\nSummary report is available at: {report_file}")
     logger.info(f"CSV summary is available at: {csv_file}")
     logger.info("\nTo examine specific results:")
-    logger.info(f"- ITS1 region: {output_dir / 'ITS1'}/")
-    logger.info(f"- ITS2 region: {output_dir / 'ITS2'}/")
-    logger.info(f"- Complete ITS region: {output_dir / 'ITS_complete'}/")
+    for region_name in REGIONS:
+        logger.info(f"- {region_name}: {output_dir / region_name}/")
 
 if __name__ == "__main__":
     main()
