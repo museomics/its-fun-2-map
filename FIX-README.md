@@ -20,33 +20,16 @@ One structural problem blocks the pipeline for any new user:
 
 ## Open Improvements
 
-### `UNITEd.py`
-- Samples are processed sequentially. `ThreadPoolExecutor` (already used in `blast_round1.py` and `blast_round2.py`) would reduce wall-clock time for multi-sample runs.
-- The UNITE database path is a required argument on every invocation. A default via an environment variable (`UNITE_DB`) would reduce friction.
-
 ### `assembly_module.py`
-- When `--summary_csv` is omitted, no message is emitted; the skip is silent. Add an `else: logger.info("--summary_csv not specified, skipping CSV summary")` branch.
-- The 3-stage SPAdes fallback strategy is non-obvious and should be documented in the README or in-script comments.
-
-### `blast_round1.py` / `blast_round2.py` / parsers
-- `blast_task()` in `its_fun_tools.py` accepts an `evalue` parameter but neither `blast_round1.py` nor `blast_round2.py` exposes `--evalue` as a CLI argument. The parsers default to `1e-5` while `blast_task()` defaults to `1e-10`. Wire `--evalue` through the BLAST scripts.
-- Both parsers silently continue when no BLAST result file exists for a sample. Add a per-sample `logger.warning` (already done in `blast_round1_parser.py` for the assembly file; do the same for the BLAST TSV).
-- `blast_round1_parser.py` has `--evalue_cutoff` and `--allow_all`; `blast_output_parser.py` does not. Since these parse equivalent output from consecutive BLAST rounds, their interfaces should either be unified or the distinction clearly documented.
-
-### `its_primer_binding.py`
-- Processing is sequential per sample. `ThreadPoolExecutor` would reduce wall-clock time for large sample sets.
-- **The sample categorisation block is not region-agnostic.** `failed_samples`, `complete_samples`, `its1_only_samples` and `its2_only_samples` are derived from hardcoded `results[sample]['ITS_complete']`, `['ITS1']` and `['ITS2']` lookups. Because `results` is a nested `defaultdict(int)`, a custom `--regions_tsv` run does not crash — it silently reports every sample as failed. The three closing `logger.info` lines listing output directories are hardcoded to the same three regions. As of v3.0.1 `extraction_summary.csv` is correct for custom regions but `summary_report.txt` is not.
-- `complete_samples`, `its1_only_samples` and `its2_only_samples` are populated but never read. Either report them or remove them.
-- The per-sample processing loop uses bare `print()` rather than the logger, so progress output does not reach the log file.
-
-### `its_fun_tools.py`
-- `log_and_print()` uses the root logger. It should accept a logger instance as a parameter to match the convention of other functions in the module.
+- The 3-stage SPAdes fallback strategy (full assembly → contigs only → k55 forced) is non-obvious to anyone reading the script cold. It should be documented with an inline comment explaining what failure condition triggers each fallback and why k55 is the last resort.
 
 ### `its_decision_making.R`
-- The file has no `if (!interactive())` block, no `commandArgs()`, and no `optparse`/`argparse` usage. It can only be sourced interactively — it cannot be called by a workflow manager as a subprocess via `Rscript`. A CLI entry point is needed.
+- The file has no `if (!interactive())` block, no `commandArgs()`, and no `optparse`/`argparse` usage. It can only be sourced interactively — it cannot be called by a workflow manager as a subprocess via `Rscript`. A CLI entry point is needed (tracked in Phase 3).
 
 ### `tutorial.md`
-- Contains only empty section headers. Needs worked examples with real arguments for each pipeline step.
+- Contains only empty section headers. Needs worked examples with real command-line invocations for each pipeline step (tracked in Phase 2).
+
+All other per-script improvements identified in the original assessment have been resolved or moved to Stretch Goals — see Phase 1 complete list and Stretch Goals section below.
 
 ---
 
@@ -114,7 +97,7 @@ This delivers:
 
 3. **Package data for R scripts.** `parse_fastp_json.R` and `its_decision_making.R` must be declared as package data in `pyproject.toml` (e.g. `[tool.setuptools.package-data] its_fun_2_map = ["*.R"]`). Without this, the `Path(__file__).parent` path resolution in `fastp_module.py` will fail after `pip install` because the R files will not be copied into the installed package.
 
-4. **Library-safe logging.** Some scripts call `setup_logging()` at module level rather than inside `main()`. When the package is imported rather than run as a CLI script, this reconfigures the calling application's root logger. Add `logging.NullHandler()` to `its_fun_2_map/__init__.py` and ensure `setup_logging()` is only called from within `main()` or `if __name__ == "__main__"` blocks.
+4. **Library-safe logging.** All scripts currently call `setup_logging()` inside their entry-point functions rather than at module level, so there is no immediate logging side-effect on import. When packaged, add `logging.NullHandler()` to `its_fun_2_map/__init__.py` as a belt-and-braces measure, and verify that no future script adds a top-level `setup_logging()` call.
 
 ### Snakemake / Nextflow pipeline
 
