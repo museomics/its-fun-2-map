@@ -31,8 +31,6 @@ from seqpy_tools import setup_logging
 # Date: 2025-11-28
 # License: MIT
 
-logger = logging.getLogger(__name__)
-
 def detect_blast_format(input_file):
     """
     Detects BLAST outfmt6 format and whether it has a valid header line.
@@ -712,7 +710,8 @@ def main(args):
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         args.log_file = f'blast_round1_processing_{timestamp}.log'
 
-    setup_logging(log_file=args.log_file)
+    global logger
+    logger = setup_logging(log_file=args.log_file)
 
     # Load taxonomy columns from input CSV to be used in mapping to blast output files
     # output of load_taxonomy_mapping is a dictionary of {ID: {'family': family,

@@ -162,7 +162,7 @@ def run_fastp_json_summary(
     # Confirm script exists
     if not r_script.exists():
         logger.error("R script not found: %s", r_script)
-        raise FileNotFoundError("R script not found: %s", r_script)
+        raise FileNotFoundError(f"R script not found: {r_script}")
 
     logger.info(f"Running fastp JSON parser")
 
@@ -480,7 +480,7 @@ def main(args):
     pattern = os.path.join(args.output_dir, "*_trim.json")
     json_paths = glob.glob(pattern, recursive=False)
     if not json_paths:
-        raise FileNotFoundError("No *_trim.json files found under %s", args.output_dir)
+        raise FileNotFoundError(f"No *_trim.json files found under {args.output_dir}")
     else: 
         run_fastp_json_summary(
             json_dir=args.output_dir,

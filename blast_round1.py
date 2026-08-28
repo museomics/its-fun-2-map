@@ -46,6 +46,12 @@ def run_blast_pipeline(database_file, makeblastdb, query_dir, output_dir, prefix
                 logger.warning(f"[SKIP] No scaffolds.fasta found for {name_id} - assembly may have failed")
                 skipped_samples.append(name_id)
 
+        for future in as_completed(tasks):
+            try:
+                future.result()
+            except Exception as e:
+                logger.error(f"[ERROR] Task failed: {e}")
+
     # Log summary of skipped samples
     if skipped_samples:
         logger.info(f"\n[SUMMARY] Skipped {len(skipped_samples)} samples with no scaffolds.fasta:")

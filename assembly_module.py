@@ -90,7 +90,7 @@ def check_assembly_output(scaffolds_file):
         return False, 0, 0, 0
 
 
-def run_spades(merged_path, unmerged_1, unmerged_2, output_path, logger, k="21,33,55"):
+def run_spades(merged_path, unmerged_1, unmerged_2, output_path, k="21,33,55"):
     """Run one SPAdes job with paired-end mode."""
     cmd = [
         "spades.py",
@@ -104,7 +104,7 @@ def run_spades(merged_path, unmerged_1, unmerged_2, output_path, logger, k="21,3
     return output_path
 
 
-def run_single_spades(mapped_path, output_path, logger, k="21,33,55"):
+def run_single_spades(mapped_path, output_path, k="21,33,55"):
     """Run one SPAdes job with single reads."""
     cmd = [
         "spades.py",
@@ -118,11 +118,11 @@ def run_single_spades(mapped_path, output_path, logger, k="21,33,55"):
 
 def run_initial_assembly(job):
     """Run initial assembly (Stage 1) for a sample."""
-    merged_path, unmerged_1, unmerged_2, output_path, logger, k = job
+    merged_path, unmerged_1, unmerged_2, output_path, k = job
     sample_name = os.path.basename(output_path).replace(".spades.out", "")
-    
+
     try:
-        run_single_spades(merged_path, output_path, logger, k)
+        run_single_spades(merged_path, output_path, k)
         
         # Check if assembly produced valid output
         scaffolds_file = os.path.join(output_path, "scaffolds.fasta")
@@ -139,15 +139,15 @@ def run_initial_assembly(job):
 
 def run_fallback1_assembly(job):
     """Run Fallback 1 assembly (single-reads k=21) for a sample."""
-    merged_path, unmerged_1, unmerged_2, output_path, logger, k = job
+    merged_path, unmerged_1, unmerged_2, output_path, k = job
     sample_name = os.path.basename(output_path).replace(".spades.out", "")
-    
+
     try:
         # Remove failed assembly directory
         if os.path.exists(output_path):
             shutil.rmtree(output_path)
-        
-        run_single_spades(merged_path, output_path, logger, k="21")
+
+        run_single_spades(merged_path, output_path, k="21")
         
         # Check if assembly produced valid output
         scaffolds_file = os.path.join(output_path, "scaffolds.fasta")
@@ -164,15 +164,15 @@ def run_fallback1_assembly(job):
 
 def run_fallback2_assembly(job):
     """Run Fallback 2 assembly (merged + unmerged pairs k=21) for a sample."""
-    merged_path, unmerged_1, unmerged_2, output_path, logger, k = job
+    merged_path, unmerged_1, unmerged_2, output_path, k = job
     sample_name = os.path.basename(output_path).replace(".spades.out", "")
-    
+
     try:
         # Remove failed assembly directory
         if os.path.exists(output_path):
             shutil.rmtree(output_path)
-        
-        run_spades(merged_path, unmerged_1, unmerged_2, output_path, logger, k="21")
+
+        run_spades(merged_path, unmerged_1, unmerged_2, output_path, k="21")
         
         # Check if assembly produced valid output
         scaffolds_file = os.path.join(output_path, "scaffolds.fasta")
@@ -195,7 +195,7 @@ def write_summary_csv(jobs, sample_paths, sample_metrics, output_dir, csv_path, 
     csv_data = []
     
     for job in jobs:
-        merged_path, unmerged_1, unmerged_2, output_path, _, k = job
+        merged_path, unmerged_1, unmerged_2, output_path, k = job
         sample_name = os.path.basename(output_path).replace(".spades.out", "")
         
         path = sample_paths.get(sample_name, [])
@@ -291,7 +291,7 @@ def main(args):
         unmerged_2 = unmerged_2_matches[0]
 
         output_path = os.path.join(args.output_dir, f"{filename}.spades.out")
-        jobs.append((merged_path, unmerged_1, unmerged_2, output_path, logger, args.k))
+        jobs.append((merged_path, unmerged_1, unmerged_2, output_path, args.k))
 
     # Track sample paths and metrics
     sample_paths = {os.path.basename(job[3]).replace(".spades.out", ""): [] for job in jobs}

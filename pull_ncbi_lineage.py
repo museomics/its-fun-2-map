@@ -37,7 +37,7 @@ def add_ncbi_lineages_to_csv(input_csv, output_csv, taxcolumn, email, logger, ap
 
     filetype = pathlib.Path(input_csv).suffix.lower()
     if filetype == ".xlsx":
-        df = xlsx2csv(input_csv, sheet=sheet)
+        df = pd.read_csv(xlsx2csv(input_csv, sheet=sheet))
     elif filetype == ".csv":
         df = pd.read_csv(input_csv)
     else:
@@ -73,7 +73,7 @@ def main(args):
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         args.log_file = f'ncbi_pull_lineage_{timestamp}.log'
 
-    logger = setup_logging(log_dir="./", log_file=args.log_file)
+    logger = setup_logging(log_file=args.log_file)
 
     # Add lineages to CSV
     add_ncbi_lineages_to_csv(args.input_csv, args.output_csv, args.taxcolumn, args.email, logger, args.api_key, args.sheet)

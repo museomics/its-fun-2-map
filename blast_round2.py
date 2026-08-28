@@ -28,7 +28,7 @@ def find_tsv_for_id(blast_dir, sample_id):
     return matches  # list of matching TSVs
 
 
-def run_seqkit_and_blast(tracking_sheet, column_name, query_dir, blast_dir, database_file, output_dir, log_file="blast_round2.log", prefix=None, max_workers=4, makeblastdb=False, evalue="1e-5"):
+def run_seqkit_and_blast(tracking_sheet, column_name, query_dir, blast_dir, database_file, output_dir, log_file="blast_round2.log", prefix=None, max_workers=4, makeblastdb=False, evalue="1e-5", sheet=None):
 
     os.makedirs(output_dir, exist_ok=True)
     tmp_fasta_dir = os.path.join(output_dir, "tmp")
@@ -47,7 +47,7 @@ def run_seqkit_and_blast(tracking_sheet, column_name, query_dir, blast_dir, data
 
     # Find only scaffolds.fasta in the immediate *.spades.out directories
     scaffold_paths = glob.glob(os.path.join(query_dir, "*.spades.out", "scaffolds.fasta"))
-    name_ids = load_name_ids(tracking_sheet, column_name)
+    name_ids = load_name_ids(tracking_sheet, column_name, sheet=sheet)
 
 
     tasks = []
@@ -146,4 +146,5 @@ if __name__ == "__main__":
         max_workers=args.max_workers,
         log_file=args.log_file,
         evalue=args.evalue,
+        sheet=args.sheet,
     )

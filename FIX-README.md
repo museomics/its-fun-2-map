@@ -145,6 +145,19 @@ All per-script bugs have been resolved:
 - Made `its_primer_binding.py` categorisation block and closing directory log lines region-agnostic: failed detection now checks all `REGIONS` keys; ITS-specific sub-categories (`complete_samples`, `its1_only_samples`, `its2_only_samples`) are computed and reported only when running with the default ITS regions (`ITS_complete`, `ITS1`, `ITS2` all present); closing output-directory log lines now iterate over `REGIONS` instead of hardcoding ITS paths
 - Fixed `its_decision_making.R` path resolution in `its_a_summary_compiler.py`: bare `r['source']('its_decision_making.R')` replaced with `Path(__file__).parent / 'its_decision_making.R'`, matching the pattern already applied to `fastp_module.py`
 
+`its_fun_tools.py`, `pull_ncbi_lineage.py`, `blast_round1.py`, `blast_round2.py`, `assembly_module.py`, `fastp_module.py`, `blast_round1_parser.py`, `its_a_summary_compiler.py` v1.x:
+- Fixed `load_name_ids` XLSX branch in `its_fun_tools.py`: `xlsx2csv()` returns a path string — previously assigned directly to `df`, causing `AttributeError` on column access; fixed with `pd.read_csv(xlsx2csv(...))`
+- Same XLSX fix applied to `add_ncbi_lineages_to_csv` in `pull_ncbi_lineage.py`
+- Fixed `process_renaming_df` in `its_a_summary_compiler.py`: `logger` was referenced as a free variable but only existed in `main()`; `logger` is now a required positional argument, passed from the call site
+- Fixed task exceptions silently swallowed in `blast_round1.py`: added `for future in as_completed(tasks): future.result()` inside the `with ThreadPoolExecutor` block so BLAST errors are logged rather than lost
+- Fixed `--sheet` not forwarded to `load_name_ids` in `blast_round2.py`: added `sheet=None` parameter to `run_seqkit_and_blast`, wired through to `load_name_ids`, and passed `sheet=args.sheet` at the call site
+- Removed `logger` from `assembly_module.py` job tuples and `run_spades`/`run_single_spades` signatures: logger was passed into worker functions (`ProcessPoolExecutor`) but never called there — all logging already happens in the main process; removing it avoids Logger pickling issues
+- Fixed `setup_logging` in `pull_ncbi_lineage.py` called with unsupported `log_dir="./"` kwarg; removed to match the interface used by all other scripts
+- Fixed `FileNotFoundError` in `fastp_module.py` raised with `%s` placeholder string rather than an f-string: message was never interpolated so the path was invisible in the exception text
+- Fixed `blast_round1_parser.py` discarding the `setup_logging` return value: removed module-level `logger = logging.getLogger(__name__)` and replaced with `global logger; logger = setup_logging(...)` inside `main()`, ensuring all module-level functions use the properly configured logger
+- Added `debug` level support to `log_and_print()` in `its_fun_tools.py`
+- Removed duplicate FAIL-filter assignment in `its_a_summary_compiler.py` (identical `filtered_df = df[...]` appeared twice consecutively)
+
 ### Phase 2 — Open
 - Write `tutorial.md` content with worked examples
 

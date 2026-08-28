@@ -47,6 +47,8 @@ def log_and_print(message, level='info', logger=None):
         logger.error(message)
     elif level == 'warning':
         logger.warning(message)
+    elif level == 'debug':
+        logger.debug(message)
 
 
 def cleanup_temp_dir(temp_dir):
@@ -60,7 +62,7 @@ def cleanup_temp_dir(temp_dir):
 def load_name_ids(tracking_sheet, column_name, sheet=None):
     filetype = pathlib.Path(tracking_sheet).suffix.lower()
     if filetype == ".xlsx":
-        df = xlsx2csv(tracking_sheet, sheet=sheet)
+        df = pd.read_csv(xlsx2csv(tracking_sheet, sheet=sheet))
     elif filetype == ".csv":
         df = pd.read_csv(tracking_sheet)
     else:

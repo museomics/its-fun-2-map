@@ -336,7 +336,7 @@ def contig_analysis(summary_df):
 
     return summary_df
 
-def process_renaming_df(original_df, new_df):
+def process_renaming_df(original_df, new_df, logger):
     # Check number of columns
     if new_df.shape[1] == 2:
         # Check required column exists in summary_df
@@ -438,10 +438,6 @@ def rename_fastas(df, name_column, out_dir, logger, delim="_"):
     filtered_df = df[
         df["Final_contig"].notna() &
         (df["Final_outcome"] == "FAIL")
-    ]
-    filtered_df = df[
-    df["Final_contig"].notna() &
-    (df["Final_outcome"] == "FAIL")
     ]
 
     logger.info("FAIL rows to process: %d", len(filtered_df))
@@ -565,7 +561,7 @@ def main():
         new_names_index["New_Name"] = new_names_index["New_Name"].str.strip()
         summary_df["ID"] = summary_df["ID"].astype(str).str.strip()
 
-        naming_df = process_renaming_df(summary_df, new_names_index)
+        naming_df = process_renaming_df(summary_df, new_names_index, logger)
         n_matched = naming_df["New_Name"].notna().sum()
         logger.info("Renaming table matched %d / %d samples", n_matched, len(naming_df))
 
