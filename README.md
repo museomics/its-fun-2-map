@@ -12,32 +12,46 @@ A pipeline for processing fungal genome skims from museum specimens — includes
 
 ## Dependencies
 ### Languages
-- r-base (4.3.0 (2023-04-21 ucrt) -- "Already Tomorrow" +) 
-- python 3.11+
+- r-base 4.5.2 — keep on 4.5.x; rpy2's conda build encodes the R series, so bumping R alone leaves rpy2 with no matching build
+- python 3.14 — minimum supported is 3.12, which `seqpy-tools` requires
 
 ### Conda packages
 | Package  | Version              |
 |----------|----------------------|
-| spades   | 4.0.0                |
-| seqkit   | 2.2.0                |
-| samtools | 1.21                 |
-| bwa      | 0.7.18-r1243-dirty   |
-| fastp    | 0.24.0               |
-| htslib   | 1.21                 |
-| blast    | 2.2.31+              |
+| fastp    | 1.0.1                |
+| seqkit   | 2.12.0               |
+| bwa      | 0.7.19               |
+| samtools | 1.22.1               |
+| bbmap    | 40.02                |
+| openjdk  | 21                   |
+| spades   | 4.2.0                |
+| blast    | 2.17.0               |
+
+BBMap supplies `repair.sh`, which `mapping_module.py` uses to resynchronise mapped read
+pairs in Step 3; `openjdk` is its Java runtime. `htslib` is no longer listed — it is
+pulled in automatically as a library dependency of `samtools`.
 
 ### Python packages (not built-in)
-- pandas (`pip install pandas`)
-- Bio (Biopython) (`pip install biopython`)
-- rpy2.robjects (`pip install rpy2`)
-- pgzip (`pip install pgzip`)
+| Package   | Version              |
+|-----------|----------------------|
+| pandas    | 2.3.3                |
+| numpy     | 2.4.1                |
+| biopython | 1.86                 |
+| rpy2      | 3.6.4                |
+| scipy     | 1.18.0               |
+| openpyxl  | 3.1.5                |
+| pgzip     | 0.4.0                |
+
+`openpyxl` is required only for `.xlsx` tracking sheets, but every module that accepts one
+reaches it — CSV sheets do not need it. `scipy` is a declared dependency of `seqpy-tools`.
+Do not downgrade `pandas`: 2.3.3 is the oldest release with a Python 3.14 build.
 
 ### R packages
-- [jsonlite](https://cran.r-project.org/web/packages/jsonlite/index.html)
+- [jsonlite](https://cran.r-project.org/web/packages/jsonlite/index.html) 2.0.0 — used by `parse_fastp_json.R`; `its_decision_making.R` needs only base R
 
 ### Custom tool packages
- - its_fun_tools
- - [seqpy-tools](https://github.com/museomics/seqpy_tools) ([available via pip](https://pypi.org/project/seqpy-tools/))
+ - its_fun_tools — a local module, not an installed package. Run the scripts from the repository directory, or put it on `PYTHONPATH`.
+ - [seqpy-tools](https://github.com/museomics/seqpy_tools) 0.1.0 ([available via pip](https://pypi.org/project/seqpy-tools/)) — imported by every module in the pipeline
 
 ### Databases
 - BLASTn databases:
@@ -47,9 +61,26 @@ A pipeline for processing fungal genome skims from museum specimens — includes
   - [UCHIME ITS2 reference dataset](https://unite.ut.ee/repository.php#panel7a) — for BLAST Round 2a
 
 ## Installing dependencies
-All dependencies are included in  `its-2-map-fun.yaml`. A conda environment can be created from this YAML using the following command after [conda](https://www.anaconda.com/docs/getting-started/miniconda/install#quickstart-install-instructions) is installed:
+All dependencies are included in `its-fun-2-map.yaml`. A conda environment can be created from this YAML using the following command after [conda](https://www.anaconda.com/docs/getting-started/miniconda/install#quickstart-install-instructions) is installed:
 ```
 conda env create -f its-fun-2-map.yaml
+conda activate its-fun-2-map
+```
+The environment targets **linux-64**. Several of the bioconda tools have no `osx-arm64`
+build, so Apple Silicon needs `CONDA_SUBDIR=osx-64` and Rosetta.
+
+`its-fun-2-map.yaml` is a curated list of what the pipeline actually calls — conda
+resolves the rest of the tree itself. Please do not overwrite it with `conda env export`
+output; write that to a separate lock file if you need a byte-exact record of a solved
+environment.
+
+To check an installation, confirm every binary is on `PATH` and every library imports:
+```
+for t in fastp seqkit spades.py bwa samtools blastn makeblastdb repair.sh; do
+  command -v "$t" >/dev/null || echo "MISSING $t"
+done
+python -c "import pandas, numpy, scipy, openpyxl, pgzip, Bio, rpy2.robjects, seqpy_tools"
+python -c "import rpy2.robjects as ro; ro.r('library(jsonlite)')"
 ```
 
 ## Pipeline Overview
