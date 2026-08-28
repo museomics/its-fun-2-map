@@ -1,6 +1,6 @@
 # its-fun-2-map
 
-A pipeline for processing fungal genome skims from museum specimens — includes quality control, mapping, assembly, BLAST taxonomic assignment, and validation.
+A pipeline for processing fungal genome skims from museum specimens - includes quality control, mapping, assembly, BLAST taxonomic assignment, and validation.
 
 ## Contents
 1. [Dependencies](#dependencies)
@@ -12,39 +12,45 @@ A pipeline for processing fungal genome skims from museum specimens — includes
 
 ## Dependencies
 ### Languages
-- r-base (4.3.0 (2023-04-21 ucrt) -- "Already Tomorrow" +) 
-- python 3.11+
+- r-base 4.5.2 - keep on 4.5.[x]
+- python 3.14 - minimum supported is 3.12, which `seqpy-tools` requires
 
 ### Conda packages
 | Package  | Version              |
 |----------|----------------------|
-| spades   | 4.0.0                |
-| seqkit   | 2.2.0                |
-| samtools | 1.21                 |
-| bwa      | 0.7.18-r1243-dirty   |
-| fastp    | 0.24.0               |
-| htslib   | 1.21                 |
-| blast    | 2.2.31+              |
+| fastp    | 1.0.1                |
+| seqkit   | 2.12.0               |
+| bwa      | 0.7.19               |
+| samtools | 1.22.1               |
+| bbmap    | 40.02                |
+| openjdk  | 21                   |
+| spades   | 4.2.0                |
+| blast    | 2.17.0               |
 
 ### Python packages (not built-in)
-- pandas (`pip install pandas`)
-- Bio (Biopython) (`pip install biopython`)
-- rpy2.robjects (`pip install rpy2`)
-- pgzip (`pip install pgzip`)
+| Package   | Version              |
+|-----------|----------------------|
+| pandas    | 2.3.3                |
+| numpy     | 2.4.1                |
+| biopython | 1.86                 |
+| rpy2      | 3.6.4                |
+| scipy     | 1.18.0               |
+| openpyxl  | 3.1.5                |
+| pgzip     | 0.4.0                |
 
 ### R packages
-- [jsonlite](https://cran.r-project.org/web/packages/jsonlite/index.html)
+- [jsonlite](https://cran.r-project.org/web/packages/jsonlite/index.html) 2.0.0 - used by `parse_fastp_json.R`; `its_decision_making.R` needs only base R
 
 ### Custom tool packages
- - its_fun_tools
- - [seqpy-tools](https://github.com/museomics/seqpy_tools) ([available via pip](https://pypi.org/project/seqpy-tools/))
+ - its_fun_tools - a local module, not an installed package. Run the scripts from the repository directory, or put it on `PYTHONPATH`.
+ - [seqpy-tools](https://github.com/museomics/seqpy_tools) 0.1.0 ([available via pip](https://pypi.org/project/seqpy-tools/)) - imported by every module in the pipeline
 
 ### Databases
 - BLASTn databases:
-  - [UNITE Full "UNITE+INSD" database](https://unite.ut.ee/repository.php#panel6a) — for reference sequence retrieval
-  - [UNITE General Release (sh_general_release_dynamic)](https://unite.ut.ee/repository.php#panel5a) — for BLAST Round 1
-  - [UCHIME ITS1 reference dataset](https://unite.ut.ee/repository.php#panel7a) — for BLAST Round 2b
-  - [UCHIME ITS2 reference dataset](https://unite.ut.ee/repository.php#panel7a) — for BLAST Round 2a
+  - [UNITE Full "UNITE+INSD" database](https://unite.ut.ee/repository.php#panel6a) - for reference sequence retrieval
+  - [UNITE General Release (sh_general_release_dynamic)](https://unite.ut.ee/repository.php#panel5a) - for BLAST Round 1
+  - [UCHIME ITS1 reference dataset](https://unite.ut.ee/repository.php#panel7a) - for BLAST Round 2b
+  - [UCHIME ITS2 reference dataset](https://unite.ut.ee/repository.php#panel7a) - for BLAST Round 2a
 
 ## Installing dependencies
 All dependencies are included in  `its-2-map-fun.yaml`. A conda environment can be created from this YAML using the following command after [conda](https://www.anaconda.com/docs/getting-started/miniconda/install#quickstart-install-instructions) is installed:
@@ -74,12 +80,12 @@ Quality control processing of raw paired-end reads using fastp with a two-stage 
 
 - **Input:** Raw paired-end sequencing reads
 - **Output:**
-  - `{sample}_trimmed_1.fq`, `{sample}_trimmed_2.fq` — trimmed paired reads
-  - `{sample}_merged.fq` — merged overlapping reads
-  - `{sample}_unmerged_1.fq`, `{sample}_unmerged_2.fq` — reads that couldn't be merged
-  - `{sample}_trim.json`, `{sample}_merge.json` — QC metrics
-  - `{sample}_overlaps.html` — overlap distribution visualisation
-  - `fastp_summary.csv` — aggregated summary statistics
+  - `{sample}_trimmed_1.fq`, `{sample}_trimmed_2.fq` - trimmed paired reads
+  - `{sample}_merged.fq` - merged overlapping reads
+  - `{sample}_unmerged_1.fq`, `{sample}_unmerged_2.fq` - reads that couldn't be merged
+  - `{sample}_trim.json`, `{sample}_merge.json` - QC metrics
+  - `{sample}_overlaps.html` - overlap distribution visualisation
+  - `fastp_summary.csv` - aggregated summary statistics
 - **Features:**
   - Adapter trimming and filtering (auto-detection for PE reads)
   - Quality filtering (Q30 threshold by default, configurable via `--qualified_quality_phred`)
@@ -92,7 +98,7 @@ Quality control processing of raw paired-end reads using fastp with a two-stage 
 | `--qualified_quality_phred` | 30 | Phred score below which a base is counted as unqualified during trimming (fastp's `-q`). Note fastp's own default is 15 |
 | `--threads` | 4 | Number of **samples** processed in parallel (i.e. concurrent fastp processes) |
 | `--fastp_threads` | 3 | Worker threads used **within** each fastp process (fastp's `-w`). Matches fastp's own default |
-| `--fastp_extra_args` | — | Additional arguments for the trimming fastp call, given as a **single quoted string** |
+| `--fastp_extra_args` | - | Additional arguments for the trimming fastp call, given as a **single quoted string** |
  
 > **Note on threading.** `--threads` and `--fastp_threads` multiply. Total worker threads is approximately `--threads x --fastp_threads`, so the default `--threads 4` uses around 12 threads, not 4. The effective figure is written to the log at startup. On a scheduler, set `--threads $SLURM_CPUS_PER_TASK --fastp_threads 1` to make the CPU request and actual usage match.
  
@@ -100,7 +106,7 @@ Quality control processing of raw paired-end reads using fastp with a two-stage 
 > ```bash
 > --fastp_extra_args "--trim_front1 10 --trim_front2 10"
 > ```
-> It cannot be used to set `-q`/`--qualified_quality_phred` or `-w`/`--thread`, which the module sets itself — use `--qualified_quality_phred` and `--fastp_threads` instead. Supplying either via `--fastp_extra_args` causes the run to exit with an error before processing begins.
+> It cannot be used to set `-q`/`--qualified_quality_phred` or `-w`/`--thread`, which the module sets itself - use `--qualified_quality_phred` and `--fastp_threads` instead. Supplying either via `--fastp_extra_args` causes the run to exit with an error before processing begins.
   
 **Example usage:**
 ```bash
@@ -135,17 +141,17 @@ Retrieves taxonomically relevant reference sequences from the UNITE database usi
 
 - **Input:** Tracking sheet with specimen taxonomy
 - **Output:**
-  - `{sample_id}_seed.fasta` — reference sequences for each specimen
+  - `{sample_id}_seed.fasta` - reference sequences for each specimen
   - Summary CSV with retrieval statistics
 - **Database:** [UNITE public (Full "UNITE+INSD") database](https://unite.ut.ee/repository.php#panel6a)
 
 **Parameters:**
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `--tax_rank` | — | Taxonomic rank to search (species/genus/family/order/class/phylum) |
-| `--number` | — | Number of reference sequences to retrieve |
+| `--tax_rank` | - | Taxonomic rank to search (species/genus/family/order/class/phylum) |
+| `--number` | - | Number of reference sequences to retrieve |
 | `--diversity` | False | Distribute sequences across child taxa |
-| `--traverse` | — | Maximum rank to traverse up to if insufficient sequences found |
+| `--traverse` | - | Maximum rank to traverse up to if insufficient sequences found |
 | `--all` | False | Retrieve all matching sequences |
 
 ---
@@ -172,11 +178,11 @@ Maps quality-filtered reads to retrieved reference sequences using BWA to enrich
   - Per-sample reference FASTA files from Step 2 (`*_seed.fasta`)
 
 **Output:**
-  - `{sample}_mapped.fastq` — mapped merged reads
-  - `{sample}_mapped_unmerged_1.fastq`, `{sample}_mapped_unmerged_2.fastq` — mapped paired reads (repaired)
-  - `{sample}_mapped_flagstats.txt` — alignment statistics for merged reads
-  - `{sample}_unmerged_1_flagstats.txt`, `{sample}_unmerged_2_flagstats.txt` — alignment statistics for paired reads
-  - `mapping_summary.csv` — aggregated mapping metrics for all samples
+  - `{sample}_mapped.fastq` - mapped merged reads
+  - `{sample}_mapped_unmerged_1.fastq`, `{sample}_mapped_unmerged_2.fastq` - mapped paired reads (repaired)
+  - `{sample}_mapped_flagstats.txt` - alignment statistics for merged reads
+  - `{sample}_unmerged_1_flagstats.txt`, `{sample}_unmerged_2_flagstats.txt` - alignment statistics for paired reads
+  - `mapping_summary.csv` - aggregated mapping metrics for all samples
 
 ---
 
@@ -201,10 +207,10 @@ Assembles mapped reads into contigs using SPAdes with a multi-stage fallback str
   - Original unmerged reads from Step 1 (`*_unmerged_1.fq`, `*_unmerged_2.fq`)
 
 **Output:**
-- `{sample}.spades.out/` — SPAdes output directory containing:
-  - `scaffolds.fasta` — assembled scaffolds
+- `{sample}.spades.out/` - SPAdes output directory containing:
+  - `scaffolds.fasta` - assembled scaffolds
   - Assembly graphs and logs
-- `assembly_summary.csv` — metrics for all samples including:
+- `assembly_summary.csv` - metrics for all samples including:
   - Assembly method used (INITIAL/FALLBACK1/FALLBACK2)
   - Number of scaffolds
   - Scaffold lengths
@@ -213,7 +219,7 @@ Assembles mapped reads into contigs using SPAdes with a multi-stage fallback str
  
 ---
 
-## Step 5: BLASTn — Round 1 (General Database) (`blast_round1.py`)
+## Step 5: BLASTn - Round 1 (General Database) (`blast_round1.py`)
 Searches assembled scaffolds against the general UNITE database for initial taxonomic identification.
 
 **Process:**
@@ -228,7 +234,7 @@ Searches assembled scaffolds against the general UNITE database for initial taxo
 - Tracking sheet with sample IDs
 
 **Output:**
-- `{sample}_blast.tsv` — BLAST results in tabular format with columns:
+- `{sample}_blast.tsv` - BLAST results in tabular format with columns:
   - qseqid, sseqid, pident, length, mismatch, gapopen, qstart, qend, sstart, send, evalue, bitscore
 
 **Database:** UNITE general release (sh_general_release_dynamic)
@@ -240,9 +246,9 @@ Parses BLAST Round 1 output and validates taxonomic assignments against expected
 
 **Taxonomic Validation Strategy:**
 The parser attempts to match BLAST hits against expected taxonomy using a cascading approach:
-1. **Species-level match** — checks if hits match expected species
-2. **Genus-level match** — if no species match, checks genus
-3. **Family-level match** — if no genus match, checks family
+1. **Species-level match** - checks if hits match expected species
+2. **Genus-level match** - if no species match, checks genus
+3. **Family-level match** - if no genus match, checks family
 4. If no matches at any level, the sample is marked as FAIL
 
 **Filtering Criteria:**
@@ -262,21 +268,21 @@ The parser attempts to match BLAST hits against expected taxonomy using a cascad
 - Assembly directory for contig extraction
 
 **Output:**
-- `blast_validation_summary.csv` — comprehensive validation results including:
-  - `ID` — sample identifier
-  - `blast_round1_found_taxon` — taxonomic level where match was found
-  - `blast_round1_expected_taxonomy` — full expected taxonomy string
-  - `blast_round1_n_contigs_in` — total contigs in assembly
-  - `blast_round1_n_contigs_hits` — contigs matching expected taxonomy
-  - `blast_round1_contigs` — contig IDs that matched
-  - `blast_round1_hit_taxonomy` — taxonomy of best BLAST hit
-  - `blast_round1_hit_coords` — alignment coordinates
-  - `blast_round1_correct_taxonomy` — PASS/FAIL status
-- `filtered_{sample}_blast.tsv` — filtered BLAST results for passing samples
-- `{sample}_parsed_contig.fasta` — extracted contig sequences for passing samples
+- `blast_validation_summary.csv` - comprehensive validation results including:
+  - `ID` - sample identifier
+  - `blast_round1_found_taxon` - taxonomic level where match was found
+  - `blast_round1_expected_taxonomy` - full expected taxonomy string
+  - `blast_round1_n_contigs_in` - total contigs in assembly
+  - `blast_round1_n_contigs_hits` - contigs matching expected taxonomy
+  - `blast_round1_contigs` - contig IDs that matched
+  - `blast_round1_hit_taxonomy` - taxonomy of best BLAST hit
+  - `blast_round1_hit_coords` - alignment coordinates
+  - `blast_round1_correct_taxonomy` - PASS/FAIL status
+- `filtered_{sample}_blast.tsv` - filtered BLAST results for passing samples
+- `{sample}_parsed_contig.fasta` - extracted contig sequences for passing samples
 ---
 
-## Step 7: BLASTn — Round 2a (ITS2-Specific) (`blast_round2.py`)
+## Step 7: BLASTn - Round 2a (ITS2-Specific) (`blast_round2.py`)
 Searches validated contigs against the UCHIME ITS2 reference database for region-specific validation. This step uses `seqkit grep` to extract only the contigs that passed Round 1 validation before running BLAST.
 
 **Process:**
@@ -293,7 +299,7 @@ Searches validated contigs against the UCHIME ITS2 reference database for region
 - Tracking sheet with sample IDs
 
 **Output:**
-- `{sample}_blast.tsv` — ITS2-specific BLAST results
+- `{sample}_blast.tsv` - ITS2-specific BLAST results
 - Temporary matched scaffold FASTAs (cleaned up after processing)
 
 **Database:** UCHIME ITS2 reference dataset
@@ -326,22 +332,22 @@ When expected family is empty (fallback to genus):
 - Assembly directory for contig extraction
 
 **Output:**
-- `taxonomy_validation_summary.csv` — validation results including:
-  - `ID` — sample identifier
-  - `expected_family` — expected taxonomic family (or genus/species if family unavailable)
-  - `expected_taxonomy` — full expected taxonomy string
-  - `n_contigs_in` — total contigs in assembly
-  - `n_contigs_hits` — contigs matching expected taxonomy
-  - `contigs` — matching contig IDs
-  - `hit_taxonomy` — taxonomy from best BLAST hit
-  - `its_coords` — ITS region coordinates on contig
-  - `correct_taxonomy` — PASS/FAIL status
-  - `contig_path` — path to extracted contig FASTA
-- `{sample}_parsed_contig.fasta` — extracted contig sequences for passing samples
+- `taxonomy_validation_summary.csv` - validation results including:
+  - `ID` - sample identifier
+  - `expected_family` - expected taxonomic family (or genus/species if family unavailable)
+  - `expected_taxonomy` - full expected taxonomy string
+  - `n_contigs_in` - total contigs in assembly
+  - `n_contigs_hits` - contigs matching expected taxonomy
+  - `contigs` - matching contig IDs
+  - `hit_taxonomy` - taxonomy from best BLAST hit
+  - `its_coords` - ITS region coordinates on contig
+  - `correct_taxonomy` - PASS/FAIL status
+  - `contig_path` - path to extracted contig FASTA
+- `{sample}_parsed_contig.fasta` - extracted contig sequences for passing samples
 
 ---
 
-## Step 9: BLASTn — Round 2b (ITS1-Specific) (`blast_round2.py`)
+## Step 9: BLASTn - Round 2b (ITS1-Specific) (`blast_round2.py`)
 Parallel analysis searching against UCHIME ITS1 reference database. Uses the same workflow as Step 7 but with the ITS1-specific database.
 
 **Input:**
@@ -351,7 +357,7 @@ Parallel analysis searching against UCHIME ITS1 reference database. Uses the sam
 - Tracking sheet with sample IDs
 
 **Output:**
-- `{sample}_blast.tsv` — ITS1-specific BLAST results
+- `{sample}_blast.tsv` - ITS1-specific BLAST results
 
 **Database:** UCHIME ITS1 reference dataset
 
@@ -366,8 +372,8 @@ Parses ITS1-specific BLAST results using the same multi-tier taxonomic validatio
 - Assembly directory for contig extraction
 
 **Output:**
-- `taxonomy_validation_summary.csv` — ITS1 validation results (same format as Step 8)
-- `{sample}_parsed_contig.fasta` — extracted contig sequences for passing samples
+- `taxonomy_validation_summary.csv` - ITS1 validation results (same format as Step 8)
+- `{sample}_parsed_contig.fasta` - extracted contig sequences for passing samples
 
 ---
 
@@ -400,11 +406,11 @@ Identifies primer binding sites and extracts ITS sequences from validated contig
 - Tracking sheet with sample IDs
 - Optional: Custom primers TSV and regions TSV
 **Output:**
-- `ITS1/{sample}_ITS1.fa` — extracted ITS1 sequences
-- `ITS2/{sample}_ITS2.fa` — extracted ITS2 sequences
-- `ITS_complete/{sample}_ITS_complete.fa` — extracted complete ITS sequences
-- `extraction_summary.csv` — extraction success per sample and region
-- `summary_report.txt` — detailed extraction statistics
+- `ITS1/{sample}_ITS1.fa` - extracted ITS1 sequences
+- `ITS2/{sample}_ITS2.fa` - extracted ITS2 sequences
+- `ITS_complete/{sample}_ITS_complete.fa` - extracted complete ITS sequences
+- `extraction_summary.csv` - extraction success per sample and region
+- `summary_report.txt` - detailed extraction statistics
  
 **Custom Primers TSV Format:**
 A header row is required, with the columns `name` and `sequence` (tab-separated):
@@ -454,7 +460,7 @@ Compiles comprehensive summary statistics across all pipeline steps, performs co
 - Optional: Naming TSV for custom FASTA header formatting
 
 **Output:**
-- `final_results_dir/merged_summary_{date}.csv` — comprehensive merged summary with columns:
+- `final_results_dir/merged_summary_{date}.csv` - comprehensive merged summary with columns:
   - UNITEd metrics (reference retrieval)
   - Trimming/merging metrics (fastp)
   - Assembly metrics (SPAdes)
@@ -464,8 +470,8 @@ Compiles comprehensive summary statistics across all pipeline steps, performs co
   - Mapping statistics
   - Contig analysis results (overlapping_coords, same_contig)
   - Final decision (Final_outcome, Final_contig_desc, Final_contig)
-- `final_results_dir/pass_fastas/` — renamed FASTAs for samples that passed all validation
-- `final_results_dir/manual_verification/` — FASTAs requiring manual review
+- `final_results_dir/pass_fastas/` - renamed FASTAs for samples that passed all validation
+- `final_results_dir/manual_verification/` - FASTAs requiring manual review
 
 **Naming TSV Format (optional):**
 ```
@@ -565,13 +571,13 @@ The pipeline accepts CSV or XLSX tracking sheets with the following columns:
 - Taxid column (for UNITEd step, configurable via `--taxid_header`)
 
 **Optional columns (for fastp_module.py):**
-- `forward` / `fwd` — path to forward reads
-- `reverse` / `rev` — path to reverse reads
+- `forward` / `fwd` - path to forward reads
+- `reverse` / `rev` - path to reverse reads
 
 If forward/reverse columns are present, file paths are read directly from the tracking sheet. Otherwise, files are searched for in the input directory using sample IDs.
 
 **For taxonomy validation (blast parsers):**
-- `Kingdom`, `Phylum`, `Class`, `Order`, `Family`, `Genus`, `Species` — taxonomic hierarchy columns
+- `Kingdom`, `Phylum`, `Class`, `Order`, `Family`, `Genus`, `Species` - taxonomic hierarchy columns
 
 If your spreadsheet doesn't contain taxonomic hierarchy columns, you can use the helper script `pull_ncbi_lineage.py`. This script will take any spreadsheet (both CSV and XLSX allowed) and queries all taxonomic IDs within in using NCBI Entrez. It then appends the taxonomic hierarchy columns to the spreadsheet. Outputs a log file and a CSV to your working directory for downstream use. 
 
