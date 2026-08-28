@@ -30,8 +30,6 @@ MANAGED_FASTP_FLAGS = {
 
 def parse_fastp_extra_args(extra_args_string):
     """Split a quoted --fastp_extra_args string into a list of fastp arguments.
-
-    Returns an empty list when no extras were supplied.
     """
 
     if not extra_args_string:
@@ -106,7 +104,8 @@ def run_fastp_trim(
 def run_fastp_merge(sample_ids, output_dir, fastp_threads=3):
     """Run fastp merge on trimmed paired-end reads
     This is designed to rely on the output from run_fastp_trim.
-    Assumes run_fastp_trim naming convention for input pairs."""
+    Assumes run_fastp_trim naming convention for input pairs.
+    """
 
     fastp_command = [
         "fastp", "--in1", f"{output_dir}/{sample_ids}_trimmed_1.fq",
@@ -157,17 +156,17 @@ def run_fastp_json_summary(
     """Run the R fastp JSON parser on all JSON files in a directory."""
 
     json_dir = Path(json_dir)
-    r_script = Path('parse_fastp_json.R')
+    r_script = Path(__file__).parent / 'parse_fastp_json.R'
 
     # Confirm script exists
     if not r_script.exists():
         logger.error("R script not found: %s", r_script)
-        raise FileNotFoundError("R script not found: %s", r_script)
+        raise FileNotFoundError(f"R script not found: {r_script}")
 
     logger.info(f"Running fastp JSON parser")
 
     # Assess for which sequences/contigs can be taken forward for submission
-    r['source']('parse_fastp_json.R')
+    r['source'](str(r_script))
     json2csv = r['json2csv']
 
     with localconverter(default_converter + pandas2ri.converter):
@@ -480,7 +479,7 @@ def main(args):
     pattern = os.path.join(args.output_dir, "*_trim.json")
     json_paths = glob.glob(pattern, recursive=False)
     if not json_paths:
-        raise FileNotFoundError("No *_trim.json files found under %s", args.output_dir)
+        raise FileNotFoundError(f"No *_trim.json files found under {args.output_dir}")
     else: 
         run_fastp_json_summary(
             json_dir=args.output_dir,
