@@ -10,7 +10,7 @@ from collections import defaultdict
 from datetime import datetime
 from seqpy_tools import setup_logging
 
-# BLAST round1 parser v3.0.0
+# BLAST output parser v3.0.0
 # Processes BLAST TSV files (outfmt 6) to extract best candidate contig based on blast results.
 # Contigs are filtered based on minimum length and percent identity, as well as e-value cutoff.
 # Outputs a new TSV file with filtered results.
@@ -31,12 +31,9 @@ from seqpy_tools import setup_logging
 # Date: 2025-11-28
 # License: MIT
 
-logger = logging.getLogger(__name__)
-
 def detect_blast_format(input_file):
     """
     Detects BLAST outfmt6 format and whether it has a valid header line.
-    Returns: (has_header: bool, columns: list[str])
     """
     standard_blast_columns = [
         'qseqid', 'sseqid', 'pident', 'length', 'mismatch', 'gapopen',
@@ -220,17 +217,6 @@ def filter_df(df, patterns_list):
 def get_expected_taxonomy_from_filename(filename, taxonomy_mapping, level):
     """
     Grab the expected taxonomy from a file name using the taxonomy mapping dictionary.
-    
-    Arguments:
-        filename: str or Path ; the file name to match
-        taxonomy_mapping: dict ; mapping of sample_id -> taxonomic info
-        level: str ; taxonomic rank to return ('family', 'genus', 'species', etc.)
-    
-    Returns:
-        (taxon, full_taxonomy, matched_id)
-        taxon: str or None ; the requested taxonomic rank for this sample
-        full_taxonomy: str or None ; full taxonomy string
-        matched_id: str or None ; the matched sample ID
     """
 
     filename_base = Path(filename).name
@@ -255,9 +241,6 @@ def count_contigs_in_assembly(assembly_dir, sample_id):
     Args:
         assembly_dir: Path to directory containing assembly outputs
         sample_id: Sample identifier
-    
-    Returns:
-        int: Number of contigs (sequences) in the scaffolds.fasta file, or 0 if not found
     """
     if not assembly_dir:
         return 0
@@ -712,7 +695,8 @@ def main(args):
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         args.log_file = f'blast_round1_processing_{timestamp}.log'
 
-    setup_logging(log_file=args.log_file)
+    global logger
+    logger = setup_logging(log_file=args.log_file)
 
     # Load taxonomy columns from input CSV to be used in mapping to blast output files
     # output of load_taxonomy_mapping is a dictionary of {ID: {'family': family,
