@@ -26,8 +26,6 @@ def run_blast_pipeline(database_file, makeblastdb, query_dir, output_dir, prefix
         subprocess.run(["makeblastdb", "-in", database_file, "-dbtype", "nucl"], check=True)
 
     # Find only scaffolds.fasta in the immediate *.spades.out directories
-    # NOTE: We intentionally do NOT fall back to contigs.fasta, as failed assemblies
-    # may have contigs.fasta but no valid scaffolds.fasta
     scaffold_paths = glob.glob(os.path.join(query_dir, "*.spades.out", "scaffolds.fasta"))
 
     tasks = []
@@ -45,6 +43,12 @@ def run_blast_pipeline(database_file, makeblastdb, query_dir, output_dir, prefix
             else:
                 logger.warning(f"[SKIP] No scaffolds.fasta found for {name_id} - assembly may have failed")
                 skipped_samples.append(name_id)
+
+        for future in as_completed(tasks):
+            try:
+                future.result()
+            except Exception as e:
+                logger.error(f"[ERROR] Task failed: {e}")
 
     # Log summary of skipped samples
     if skipped_samples:
