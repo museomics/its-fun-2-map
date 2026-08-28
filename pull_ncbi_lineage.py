@@ -8,7 +8,6 @@ import logging
 import argparse
 from Bio import Entrez
 from datetime import datetime
-
 from its_fun_tools import get_ncbi_lineage, log_and_print
 from seqpy_tools import xlsx2csv, setup_logging
 
@@ -37,11 +36,11 @@ def add_ncbi_lineages_to_csv(input_csv, output_csv, taxcolumn, email, logger, ap
 
     filetype = pathlib.Path(input_csv).suffix.lower()
     if filetype == ".xlsx":
-        df = xlsx2csv(input_csv, sheet=sheet)
+        df = pd.read_csv(xlsx2csv(input_csv, sheet=sheet))
     elif filetype == ".csv":
         df = pd.read_csv(input_csv)
     else:
-        raise ValueError(f"Unsupported tracking sheet format: {tracking_sheet}")
+        raise ValueError(f"Unsupported tracking sheet format: {input_csv}")
 
     if taxcolumn not in df.columns:
         logger.error(f"Taxid column '{taxcolumn}' not found in input CSV.")
@@ -66,14 +65,13 @@ def add_ncbi_lineages_to_csv(input_csv, output_csv, taxcolumn, email, logger, ap
     df.to_csv(output_csv, index=False)
     logger.info(f"Lineage data added and saved to {output_csv}")
 
-def main():
-
+def main(args):
     # Set up logging
     if args.log_file is None:
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         args.log_file = f'ncbi_pull_lineage_{timestamp}.log'
 
-    logger = setup_logging(log_dir="./", log_file=args.log_file)
+    logger = setup_logging(log_file=args.log_file)
 
     # Add lineages to CSV
     add_ncbi_lineages_to_csv(args.input_csv, args.output_csv, args.taxcolumn, args.email, logger, args.api_key, args.sheet)
@@ -87,8 +85,8 @@ if __name__ == "__main__":
     parser.add_argument("--email", help="Email address for NCBI Entrez.")
     parser.add_argument("--api_key", help="NCBI API key for increased rate limits.", default=None)
     parser.add_argument("--taxcolumn", help="Column name in CSV that contains taxids.", default="taxid")
-    parser.add_argument("--log_file", help="Path to log file.", default="ncbi_lineage.log")
-    parser.add_argument("--sheet", help="Sheet number to read if input is XLSX. Default is 1.", type=int, default=1)    
+    parser.add_argument("--log_file", help="Path to log file.", default=None)
+    parser.add_argument("--sheet", help="Sheet number to read if input is XLSX. Default is 1.", type=int, default=1)
     args = parser.parse_args()
 
-    main()
+    main(args)
