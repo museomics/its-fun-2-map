@@ -14,7 +14,6 @@ from Bio import Entrez
 from seqpy_tools import xlsx2csv
 
 #### Helper functions used across scripts
-
 def blast_task(scaff_path, database_file, output_dir, name_id, prefix=None, evalue="1e-10"):
     parent_dir = os.path.basename(os.path.dirname(scaff_path))
     # Use name_id as prefix if no prefix provided
@@ -47,6 +46,8 @@ def log_and_print(message, level='info', logger=None):
         logger.error(message)
     elif level == 'warning':
         logger.warning(message)
+    elif level == 'debug':
+        logger.debug(message)
 
 
 def cleanup_temp_dir(temp_dir):
@@ -60,7 +61,7 @@ def cleanup_temp_dir(temp_dir):
 def load_name_ids(tracking_sheet, column_name, sheet=None):
     filetype = pathlib.Path(tracking_sheet).suffix.lower()
     if filetype == ".xlsx":
-        df = xlsx2csv(tracking_sheet, sheet=sheet)
+        df = pd.read_csv(xlsx2csv(tracking_sheet, sheet=sheet))
     elif filetype == ".csv":
         df = pd.read_csv(tracking_sheet)
     else:
