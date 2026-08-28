@@ -2,12 +2,12 @@ import os
 import sys
 import subprocess
 import logging
-import pathlib
 import shutil
 import glob
 import argparse
 import pandas as pd
 import re
+from pathlib import Path
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from its_fun_tools import load_name_ids, cleanup_temp_dir, log_and_print
