@@ -8,7 +8,7 @@ dependencies:
   - fastp=1.0.1
   - seqkit=2.12.0
   - bwa=0.7.19
-  - samtools=1.22.1
+  - samtools=1.24
   - bbmap=40.02
   - openjdk=21
   - spades=4.2.0
