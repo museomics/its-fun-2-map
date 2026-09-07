@@ -14,7 +14,7 @@
 # BLAST, and summary.
 #
 # Author: M. Kamouyiaros & D. Parsons (NHMUK)
-# Version: 2.0.0
+# Version: 1.0.0
 #
 #===============================================================================
 
@@ -63,6 +63,8 @@ BLAST_PARSED_OUTPUT_ROUND1="${OUTPUT_BASE}/05a_blast_parsed1"
 BLAST_PARSED_OUTPUT_ITS2="${OUTPUT_BASE}/06a_blast_parsed2a-ITS2"
 BLAST_PARSED_OUTPUT_ITS1="${OUTPUT_BASE}/07a_blast_parsed2b-ITS1"
 ITS_EXTRACTION_OUTPUT="${OUTPUT_BASE}/08_its_primer_extraction"
+# Created by its_a_summary_compiler.py, not by create_dir below
+FINAL_RESULTS_OUTPUT="${OUTPUT_BASE}/final_results_dir"
 
 ## Configurable parameters
 # UNITEd.py parameters
@@ -333,7 +335,7 @@ check_status "BLAST round 1"
 log_section "STEP 5.5: BLAST ROUND 1 PARSING & TAXONOMIC VALIDATION"
 log_info "Starting BLAST round 1 output parsing and taxonomic validation..."
 log_info "Input directory: ${BLAST_ROUND1_OUTPUT}"
-log_info "Output directory: ${OUTPUT_BASE}/blast_parsed1"
+log_info "Output directory: ${BLAST_PARSED_OUTPUT_ROUND1}"
 log_info "Minimum sequence length: ${MIN_LENGTH}"
 log_info "Minimum percent identity: ${MIN_PIDENT}"
 log_info "Assembly directory: ${ASSEMBLY_OUTPUT}"
@@ -354,8 +356,8 @@ check_status "BLAST round 1 parsing"
 
 #===============================================================================
 
-# Step 6: BLAST Round 2 (UCHIME ITS2 DATABASE)
-log_section "STEP 6: BLAST ANALYSIS - ROUND 2 (ITS2)"
+# Step 6: BLAST Round 2a (UCHIME ITS2 DATABASE)
+log_section "STEP 6: BLAST ANALYSIS - ROUND 2A (ITS2)"
 log_info "Starting BLAST search against UCHIME reference ITS2-specific database..."
 log_info "Query directory: ${ASSEMBLY_OUTPUT}"
 log_info "Previous BLAST results: ${BLAST_ROUND1_OUTPUT}"
@@ -370,12 +372,12 @@ python blast_round2.py \
    --tracking_sheet "${TRACKING_SHEET}" \
    --column_name "${COLUMN_NAME}" \
    --log_file "${LOGS}/blast_round2a.log"
-check_status "BLAST round 2 (ITS2)"
+check_status "BLAST round 2a (ITS2)"
 
 #===============================================================================
 
 # Step 6.5: BLAST Output Parsing (ITS2)
-log_section "STEP 7: BLAST OUTPUT PARSING & TAXONOMIC VALIDATION (ITS2)"
+log_section "STEP 6.5: BLAST OUTPUT PARSING & TAXONOMIC VALIDATION (ITS2)"
 log_info "Starting BLAST output parsing and taxonomic validation for ITS2..."
 log_info "Input directory: ${BLAST_ROUND2A_OUTPUT}"
 log_info "Output directory: ${BLAST_PARSED_OUTPUT_ITS2}"
@@ -398,7 +400,7 @@ check_status "BLAST output parsing (ITS2)"
 #===============================================================================
 
 # Step 7: BLAST Round 2b (UCHIME ITS1 DATABASE)
-log_section "STEP 8: BLAST ANALYSIS - ROUND 2B (ITS1)"
+log_section "STEP 7: BLAST ANALYSIS - ROUND 2B (ITS1)"
 log_info "Starting BLAST search against UCHIME reference ITS1-specific database..."
 log_info "Query directory: ${ASSEMBLY_OUTPUT}"
 log_info "Previous BLAST results: ${BLAST_ROUND1_OUTPUT}"
@@ -417,8 +419,8 @@ check_status "BLAST round 2b (ITS1)"
 
 #===============================================================================
 
-# Step 8: BLAST Output Parsing (ITS1)
-log_section "STEP 9: BLAST OUTPUT PARSING & TAXONOMIC VALIDATION (ITS1)"
+# Step 7.5: BLAST Output Parsing (ITS1)
+log_section "STEP 7.5: BLAST OUTPUT PARSING & TAXONOMIC VALIDATION (ITS1)"
 log_info "Starting BLAST output parsing and taxonomic validation for ITS1..."
 log_info "Input directory: ${BLAST_ROUND2B_OUTPUT}"
 log_info "Output directory: ${BLAST_PARSED_OUTPUT_ITS1}"
@@ -440,8 +442,8 @@ check_status "BLAST output parsing (ITS1)"
 
 #===============================================================================
 
-# Step 9: ITS Primer Alignment
-log_section "STEP 10: ITS PRIMER BINDING & EXTRACTION"
+# Step 8: ITS Primer Alignment
+log_section "STEP 8: ITS PRIMER BINDING & EXTRACTION"
 log_info "Starting ITS primer binding and extraction..."
 log_info "Input directory: ${BLAST_PARSED_OUTPUT_ITS2}"
 log_info "I.e. Using contigs confirmed to contain ITS2 from the correct taxon"
@@ -456,11 +458,11 @@ python its_primer_binding.py \
 check_status "ITS primer binding"
 
 #===============================================================================
-# Step 10: Parse the parsed parsing results
-log_section "STEP 11: AGGREGATING METRICS"
+# Step 9: Parse the parsed parsing results
+log_section "STEP 9: AGGREGATING METRICS"
 log_info "Starting metrics parsing, summarisation, and selection..."
 log_info "Summarising across outputs from ${OUTPUT_BASE}"
-log_info "Output directory 'final_results_dir' in ${OUTPUT_BASE}"
+log_info "Output directory: ${FINAL_RESULTS_OUTPUT}"
 
 if [[ "$different_naming" == "YES" ]]; then
     log_info "Running with renaming option using: ${NAMING_TSV}"
@@ -485,16 +487,19 @@ echo "Runtime: $SECONDS seconds"
 echo "Input samples: $(wc -l < "${TRACKING_SHEET}") (including header)"
 echo "Log file: ${LOG_FILE}"
 echo "Output directories created:"
+echo "  - Logs: ${LOGS}"
 echo "  - Quality control: ${FASTP_OUTPUT}"
 echo "  - UNITEd: ${UNITED_OUTPUT}"
 echo "  - Mapped reads: ${MAPPING_OUTPUT}"
 echo "  - Assemblies: ${ASSEMBLY_OUTPUT}"
 echo "  - BLAST round 1: ${BLAST_ROUND1_OUTPUT}"
-echo "  - BLAST round 2 (ITS2): ${BLAST_ROUND2A_OUTPUT}"
-echo "  - BLAST round 2b (ITS1): ${BLAST_ROUND2B_OUTPUT}"
+echo "  - BLAST round 1 parsed: ${BLAST_PARSED_OUTPUT_ROUND1}"
+echo "  - BLAST round 2a (ITS2): ${BLAST_ROUND2A_OUTPUT}"
 echo "  - ITS2 parsed: ${BLAST_PARSED_OUTPUT_ITS2}"
+echo "  - BLAST round 2b (ITS1): ${BLAST_ROUND2B_OUTPUT}"
 echo "  - ITS1 parsed: ${BLAST_PARSED_OUTPUT_ITS1}"
 echo "  - ITS primer extraction: ${ITS_EXTRACTION_OUTPUT}"
+echo "  - Final results: ${FINAL_RESULTS_OUTPUT}"
 echo "==============================================================================="
 
 log_info "Pipeline execution complete. Check ${LOG_FILE} for detailed logs."
