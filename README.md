@@ -368,7 +368,7 @@ Parses ITS1-specific BLAST results using the same multi-tier taxonomic validatio
 
 ---
 
-### Step 8: ITS Primer Binding & Extraction (`its_primer_binding.py`)
+## Step 8: ITS Primer Binding & Extraction (`its_primer_binding.py`)
 Identifies primer binding sites and extracts ITS sequences from validated contigs using `seqkit amplicon`. Uses standard ITS primers from White et al. (1990) by default, with support for custom primer sets.
  
 **Default Primers ([White et al. 1990](https://www.sciencedirect.com/science/chapter/edited-volume/abs/pii/B9780123721808500421?via%3Dihub)):**
