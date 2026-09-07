@@ -299,8 +299,8 @@ def main(args):
     logger.info("=" * 80)
     logger.info(f"Total samples to process: {len(jobs)}")
     logger.info(f"Strategy: INITIAL (single-reads k={args.k})")
-    logger.info(f"          â†’ FALLBACK1 (single-reads k=21)")
-    logger.info(f"          â†’ FALLBACK2 (merged+unmerged k=21)")
+    logger.info(f"          -> FALLBACK1 (single-reads k=21)")
+    logger.info(f"          -> FALLBACK2 (merged+unmerged k=21)")
     logger.info("=" * 80)
 
     # =========================================================================
@@ -319,15 +319,15 @@ def main(args):
                 sample_name, status, n_scaffolds, mean_length, n50 = future.result()
                 
                 if status == "PASS":
-                    logger.info(f"[{sample_name}] INITIAL: PASS âœ“ ({n_scaffolds} scaffolds, N50={n50} bp, mean={mean_length:.2f} bp)")
+                    logger.info(f"[{sample_name}] INITIAL: PASS ({n_scaffolds} scaffolds, N50={n50} bp, mean={mean_length:.2f} bp)")
                     sample_paths[sample_name].append("INITIAL: PASS")
                     sample_metrics[sample_name] = (n_scaffolds, mean_length, n50)
                 elif status == "FAIL":
-                    logger.warning(f"[{sample_name}] INITIAL: FAIL âœ— â†’ triggering FALLBACK1")
+                    logger.warning(f"[{sample_name}] INITIAL: FAIL -> triggering FALLBACK1")
                     sample_paths[sample_name].append("INITIAL: FAIL")
                     samples_for_fallback1.add(sample_name)
                 else:  # ERROR
-                    logger.error(f"[{sample_name}] INITIAL: ERROR âœ— (SPAdes crashed) â†’ triggering FALLBACK1")
+                    logger.error(f"[{sample_name}] INITIAL: ERROR (SPAdes crashed) -> triggering FALLBACK1")
                     sample_paths[sample_name].append("INITIAL: ERROR")
                     samples_for_fallback1.add(sample_name)
                     
@@ -362,15 +362,15 @@ def main(args):
                     sample_name, status, n_scaffolds, mean_length, n50 = future.result()
                     
                     if status == "PASS":
-                        logger.info(f"[{sample_name}] FALLBACK1: PASS âœ“ ({n_scaffolds} scaffolds, N50={n50} bp, mean={mean_length:.2f} bp)")
+                        logger.info(f"[{sample_name}] FALLBACK1: PASS ({n_scaffolds} scaffolds, N50={n50} bp, mean={mean_length:.2f} bp)")
                         sample_paths[sample_name].append("FALLBACK1: PASS")
                         sample_metrics[sample_name] = (n_scaffolds, mean_length, n50)
                     elif status == "FAIL":
-                        logger.warning(f"[{sample_name}] FALLBACK1: FAIL âœ— â†’ triggering FALLBACK2")
+                        logger.warning(f"[{sample_name}] FALLBACK1: FAIL -> triggering FALLBACK2")
                         sample_paths[sample_name].append("FALLBACK1: FAIL")
                         samples_for_fallback2.add(sample_name)
                     else:  # ERROR
-                        logger.error(f"[{sample_name}] FALLBACK1: ERROR âœ— (SPAdes crashed) â†’ triggering FALLBACK2")
+                        logger.error(f"[{sample_name}] FALLBACK1: ERROR (SPAdes crashed) -> triggering FALLBACK2")
                         sample_paths[sample_name].append("FALLBACK1: ERROR")
                         samples_for_fallback2.add(sample_name)
                         
@@ -405,14 +405,14 @@ def main(args):
                     sample_name, status, n_scaffolds, mean_length, n50 = future.result()
                     
                     if status == "PASS":
-                        logger.info(f"[{sample_name}] FALLBACK2: PASS âœ“ ({n_scaffolds} scaffolds, N50={n50} bp, mean={mean_length:.2f} bp)")
+                        logger.info(f"[{sample_name}] FALLBACK2: PASS ({n_scaffolds} scaffolds, N50={n50} bp, mean={mean_length:.2f} bp)")
                         sample_paths[sample_name].append("FALLBACK2: PASS")
                         sample_metrics[sample_name] = (n_scaffolds, mean_length, n50)
                     elif status == "FAIL":
-                        logger.error(f"[{sample_name}] FALLBACK2: FAIL âœ— (all assembly attempts exhausted)")
+                        logger.error(f"[{sample_name}] FALLBACK2: FAIL (all assembly attempts exhausted)")
                         sample_paths[sample_name].append("FALLBACK2: FAIL")
                     else:  # ERROR
-                        logger.error(f"[{sample_name}] FALLBACK2: ERROR âœ— (SPAdes crashed, all attempts exhausted)")
+                        logger.error(f"[{sample_name}] FALLBACK2: ERROR (SPAdes crashed, all attempts exhausted)")
                         sample_paths[sample_name].append("FALLBACK2: ERROR")
                         
                 except Exception as e:
@@ -450,8 +450,8 @@ def main(args):
         logger.info(f"  FALLBACK2: {fallback2_pass} passed")
     logger.info("")
     logger.info("FINAL RESULTS:")
-    logger.info(f"  âœ“ Total successful: {total_pass}/{len(jobs)}")
-    logger.info(f"  âœ— Total failed:     {total_fail}/{len(jobs)}")
+    logger.info(f"  Total successful: {total_pass}/{len(jobs)}")
+    logger.info(f"  Total failed:     {total_fail}/{len(jobs)}")
     
     # Per-sample path summary
     logger.info("")
@@ -461,13 +461,13 @@ def main(args):
     
     for sample_name in sorted(sample_paths.keys()):
         path = sample_paths[sample_name]
-        path_str = " â†’ ".join(path)
+        path_str = " -> ".join(path)
         
         # Determine final status symbol
         if path and path[-1].endswith("PASS"):
-            final_status = "âœ“"
+            final_status = "[OK]"
         else:
-            final_status = "âœ—"
+            final_status = "[FAILED]"
         
         logger.info(f"  {sample_name}: {path_str} {final_status}")
     

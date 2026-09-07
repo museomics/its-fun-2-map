@@ -3,27 +3,24 @@ channels:
   - conda-forge
   - bioconda
 dependencies:
-  - python=3.14
-  - r-base=4.5.2
-  - fastp=1.0.1
-  - seqkit=2.12.0
-  - bwa=0.7.19
-  - samtools=1.24
-  - bbmap=40.02
+  - python=3.14          # floor is 3.12 (seqpy-tools sets requires-python >=3.12)
+  - r-base=4.5.2         # embedded by rpy2
+  - fastp=1.0.1          # trimming, merging, overlap plots
+  - seqkit=2.12.0        # stats, grep, amplicon
+  - bwa=0.7.19           # index, mem, aln, samse, sampe
+  - samtools=1.24        # view, sort, fastq, flagstat
+  - bbmap=40.02          # repair.sh & read-pair resynchronisation
   - openjdk=21
-  - spades=4.2.0
-  - blast=2.17.0
-  - r-jsonlite=2.0.0
+  - spades=4.2.0         # assembly
+  - blast=2.17.0         # blastn & makeblastdb
+  - r-jsonlite=2.0.0     # parse_fastp_json.R
   - pandas=2.3.3
   - numpy=2.4.1
-  - biopython=1.86
-  - rpy2=3.6.4
-  - scipy=1.18.0
-  - openpyxl=3.1.5
-  - pgzip=0.4.0
+  - biopython=1.86       # Bio.Entrez & Bio.SeqIO
+  - rpy2=3.6.4           # build encodes both py3.14 and R 4.5 — see r-base above
+  - scipy=1.18.0         # dependency of seqpy-tools
+  - openpyxl=3.1.5       # for seqpy_tools.xlsx2csv
+  - pgzip=0.4.0          # imported at seqpy_tools module load
   - pip
-  # Listing the packages above in conda means pip finds seqpy-tools'
-  # requirements already satisfied and installs only seqpy-tools itself,
-  # rather than laying its own wheels over the conda builds.
   - pip:
       - seqpy-tools==0.1.0

@@ -1051,7 +1051,7 @@ def main():
     
     # Show matched files
     for result in matched_files:
-        status = "Ã¢Å“â€œ" if result['processed'] else "Ã¢Å“â€”"
+        status = "[OK]" if result['processed'] else "[FAILED]"
         log_and_print(f"   {result['matched_id']} {status}")
         log_and_print(f"-> File: {result['filename']}")
         log_and_print(f"   Expected family: {result['expected_family']}")
@@ -1063,7 +1063,7 @@ def main():
     if unmatched_files:
         log_and_print(f"\nUnmatched Files:")
         for result in unmatched_files:
-            status = "Ã¢Å“â€œ" if result['processed'] else "Ã¢Å“â€”"
+            status = "[OK]" if result['processed'] else "[FAILED]"
             log_and_print(f"  {result['filename']} {status} - No taxonomy mapping found")
             if result['processed']:
                 log_and_print(f"    Queries processed: {result['queries']}, Hits extracted: {result['hits']}") 

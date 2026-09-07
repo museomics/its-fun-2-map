@@ -1,6 +1,6 @@
 # its-fun-2-map
 
-A pipeline for processing fungal genome skims from museum specimens - includes quality control, mapping, assembly, BLAST taxonomic assignment, and validation.
+A pipeline for processing fungal genome skims from museum specimens. Includes quality control, mapping, assembly, BLAST taxonomic assignment, and validation.
 
 ## Contents
 1. [Dependencies](#dependencies)
@@ -12,7 +12,7 @@ A pipeline for processing fungal genome skims from museum specimens - includes q
 
 ## Dependencies
 ### Languages
-- r-base 4.5.2 - keep on 4.5.[x]
+- r-base 4.5.2 - keep on 4.5.x; rpy2's conda build encodes the R series, so bumping R alone leaves rpy2 with no matching build
 - python 3.14 - minimum supported is 3.12, which `seqpy-tools` requires
 
 ### Conda packages
@@ -21,11 +21,15 @@ A pipeline for processing fungal genome skims from museum specimens - includes q
 | fastp    | 1.0.1                |
 | seqkit   | 2.12.0               |
 | bwa      | 0.7.19               |
-| samtools | 1.22.1               |
+| samtools | 1.24                 |
 | bbmap    | 40.02                |
 | openjdk  | 21                   |
 | spades   | 4.2.0                |
 | blast    | 2.17.0               |
+
+BBMap supplies `repair.sh`, which `mapping_module.py` uses to resynchronise mapped read
+pairs in Step 3; `openjdk` is its Java runtime. `htslib` is no longer listed - it is
+pulled in automatically as a library dependency of `samtools`.
 
 ### Python packages (not built-in)
 | Package   | Version              |
@@ -53,9 +57,10 @@ A pipeline for processing fungal genome skims from museum specimens - includes q
   - [UCHIME ITS2 reference dataset](https://unite.ut.ee/repository.php#panel7a) - for BLAST Round 2a
 
 ## Installing dependencies
-All dependencies are included in  `its-2-map-fun.yaml`. A conda environment can be created from this YAML using the following command after [conda](https://www.anaconda.com/docs/getting-started/miniconda/install#quickstart-install-instructions) is installed:
+All dependencies are included in `its-fun-2-map.yaml`. A conda environment can be created from this YAML using the following command after [conda](https://www.anaconda.com/docs/getting-started/miniconda/install#quickstart-install-instructions) is installed:
 ```
 conda env create -f its-fun-2-map.yaml
+conda activate its-fun-2-map
 ```
 
 ## Pipeline Overview
@@ -70,7 +75,7 @@ The pipeline processes raw paired-end sequencing reads from fungal museum specim
 ```
 Raw Reads → QC → Reference Retrieval → Read Mapping → Assembly → BLAST Validation → ITS Extraction
 ```
-**All pipeline steps can be run sequentially using the `pipeline.sh` script.**
+**All pipeline steps can be run sequentially using the `run_pipeline.sh` script.**
 ---
 
 
@@ -107,22 +112,7 @@ Quality control processing of raw paired-end reads using fastp with a two-stage 
 > --fastp_extra_args "--trim_front1 10 --trim_front2 10"
 > ```
 > It cannot be used to set `-q`/`--qualified_quality_phred` or `-w`/`--thread`, which the module sets itself - use `--qualified_quality_phred` and `--fastp_threads` instead. Supplying either via `--fastp_extra_args` causes the run to exit with an error before processing begins.
-  
-**Example usage:**
-```bash
-# Directory input
-python fastp_module.py --input_dir raw_reads --output_dir fastp_processed
- 
-# Tracking sheet with forward/reverse path columns
-python fastp_module.py --tracking_sheet samples.csv --column_name ID --output_dir fastp_processed
- 
-# Relaxed quality threshold, scheduler-friendly threading, extra trimming
-python fastp_module.py --input_dir raw_reads --output_dir fastp_processed \
-  --qualified_quality_phred 20 --threads 8 --fastp_threads 1 \
-  --fastp_extra_args "--trim_front1 10 --trim_front2 10"
-```
- 
----
+
 ---
 
 ## Step 2: Pseudo-Reference Sequence Retrieval (`UNITEd.py`)
@@ -241,7 +231,7 @@ Searches assembled scaffolds against the general UNITE database for initial taxo
 
 ---
 
-## Step 6: BLASTn Round 1 Parsing & Taxonomic Validation (`blast_round1_parser.py`)
+## Step 5.5: BLASTn Round 1 Parsing & Taxonomic Validation (`blast_round1_parser.py`)
 Parses BLAST Round 1 output and validates taxonomic assignments against expected taxonomy with cascading taxonomic rank matching.
 
 **Taxonomic Validation Strategy:**
@@ -280,9 +270,10 @@ The parser attempts to match BLAST hits against expected taxonomy using a cascad
   - `blast_round1_correct_taxonomy` - PASS/FAIL status
 - `filtered_{sample}_blast.tsv` - filtered BLAST results for passing samples
 - `{sample}_parsed_contig.fasta` - extracted contig sequences for passing samples
+
 ---
 
-## Step 7: BLASTn - Round 2a (ITS2-Specific) (`blast_round2.py`)
+## Step 6: BLASTn - Round 2a (ITS2-Specific) (`blast_round2.py`)
 Searches validated contigs against the UCHIME ITS2 reference database for region-specific validation. This step uses `seqkit grep` to extract only the contigs that passed Round 1 validation before running BLAST.
 
 **Process:**
@@ -306,7 +297,7 @@ Searches validated contigs against the UCHIME ITS2 reference database for region
 
 ---
 
-## Step 8: BLASTn Parsing & Validation (ITS2) (`blast_output_parser.py`)
+## Step 6.5: BLASTn Parsing & Validation (ITS2) (`blast_output_parser.py`)
 Parses ITS2-specific BLAST results and applies multi-tier taxonomic validation with cascading fallbacks from family to genus to species level.
 
 **Multi-Tier Taxonomy Matching Logic:**
@@ -347,7 +338,7 @@ When expected family is empty (fallback to genus):
 
 ---
 
-## Step 9: BLASTn - Round 2b (ITS1-Specific) (`blast_round2.py`)
+## Step 7: BLASTn - Round 2b (ITS1-Specific) (`blast_round2.py`)
 Parallel analysis searching against UCHIME ITS1 reference database. Uses the same workflow as Step 7 but with the ITS1-specific database.
 
 **Input:**
@@ -363,7 +354,7 @@ Parallel analysis searching against UCHIME ITS1 reference database. Uses the sam
 
 ---
 
-## Step 10: BLASTn Parsing & Validation (ITS1) (`blast_output_parser.py`)
+## Step 7.5: BLASTn Parsing & Validation (ITS1) (`blast_output_parser.py`)
 Parses ITS1-specific BLAST results using the same multi-tier taxonomic validation as Step 8.
 
 **Input:**
@@ -377,7 +368,7 @@ Parses ITS1-specific BLAST results using the same multi-tier taxonomic validatio
 
 ---
 
-### Step 11: ITS Primer Binding & Extraction (`its_primer_binding.py`)
+### Step 8: ITS Primer Binding & Extraction (`its_primer_binding.py`)
 Identifies primer binding sites and extracts ITS sequences from validated contigs using `seqkit amplicon`. Uses standard ITS primers from White et al. (1990) by default, with support for custom primer sets.
  
 **Default Primers ([White et al. 1990](https://www.sciencedirect.com/science/chapter/edited-volume/abs/pii/B9780123721808500421?via%3Dihub)):**
@@ -429,12 +420,12 @@ MyRegion	FWD1	REV1
  
 `--primers_tsv` and `--regions_tsv` must be supplied together, or neither (to use the built-in ITS defaults).
  
-> **Known limitation.** The sample categorisation section of `summary_report.txt` is hardcoded to the default `ITS1`/`ITS2`/`ITS_complete` region names. Under a custom regions TSV, `extraction_summary.csv` is correct but that section of the report will list every sample as having no regions extracted. Use `extraction_summary.csv` as the authoritative output for custom region sets.
+> **Note on custom regions.** `summary_report.txt` reports per-region counts and the "no regions extracted" list using whatever region names your regions TSV defines. The ITS-specific breakdown - complete ITS, ITS1 only, ITS2 only is emitted only when the region set includes `ITS1`, `ITS2` and `ITS_complete`.
  
 ---
  
 
-## Step 12: Summary Metrics Aggregation (`its_a_summary_compiler.py`)
+## Step 9: Summary Metrics Aggregation (`its_a_summary_compiler.py`)
 Compiles comprehensive summary statistics across all pipeline steps, performs contig analysis to resolve ITS1/ITS2 results, and prepares final output FASTAs for submission.
 
 **Process:**
@@ -487,7 +478,8 @@ SAMPLE002	Genus_species_voucher456
 ## Output Directory Structure
 ```
 output_base/
-├── fastp_processed/               # Step 1: Quality-filtered reads
+├── 00_logs/                          # Detailed logs for each step
+├── 01_fastp_processed/               # Step 1: Quality-filtered reads
 │   ├── {sample}_trimmed_1.fq
 │   ├── {sample}_trimmed_2.fq
 │   ├── {sample}_merged.fq
@@ -496,12 +488,14 @@ output_base/
 │   ├── {sample}_trim.json
 │   ├── {sample}_merge.json
 │   ├── {sample}_overlaps.html
-│   ├── fastp_summary.out          (long-formatted version of fastp_summary.csv)
-│   └── fastp_summary.csv
-├── UNITEd/                        # Step 2: Retrieved reference sequences
+│   ├── fastp_summary.out             (long-formatted version of fastp_summary.csv)
+│   ├── fastp_summary.csv
+│   ├── trimmed_json_summary.csv
+│   └── merged_json_summary.csv
+├── 02_UNITEd/                        # Step 2: Retrieved reference sequences
 │   ├── {sample}_seed.fasta
 │   └── UNITEd_summary.csv
-├── mapped_reads/                  # Step 3: Reads mapped to references
+├── 03_mapped_reads/                  # Step 3: Reads mapped to references
 │   ├── {sample}_mapped.fastq
 │   ├── {sample}_mapped_unmerged_1.fastq
 │   ├── {sample}_mapped_unmerged_2.fastq
@@ -509,31 +503,31 @@ output_base/
 │   ├── {sample}_unmerged_1_flagstats.txt
 │   ├── {sample}_unmerged_2_flagstats.txt
 │   └── mapping_summary.csv
-├── assemblies/                    # Step 4: Assembled contigs
+├── 04_assemblies/                    # Step 4: Assembled contigs
 │   ├── {sample}.spades.out/
 │   │   ├── scaffolds.fasta
 │   │   ├── contigs.fasta
 │   │   └── ...
 │   └── assembly_summary.csv
-├── blast_round1/                  # Step 5: Initial BLAST results
-│   └── {sample}_blast.tsv
-├── blast_parsed1/                 # Step 6: Filtered and validated results
+├── 05_blast_round1/                  # Step 5: Initial BLAST results
+│   └── {sample}_blast_results.tsv
+├── 05a_blast_parsed1/                # Step 5.5: Filtered and validated results
 │   ├── blast_validation_summary.csv
-│   ├── filtered_{sample}_blast.tsv
+│   ├── filtered_{sample}_blast_results.tsv
 │   └── {sample}_parsed_contig.fasta
-├── blast_round2a-ITS2/            # Step 7: ITS2-specific BLAST results
-│   └── {sample}_blast.tsv
-├── blast_parsed2a-ITS2/           # Step 8: Validated ITS2 results
+├── 06_blast_round2a-ITS2/            # Step 6: ITS2-specific BLAST results
+│   └── {sample}_blast_results.tsv
+├── 06a_blast_parsed2a-ITS2/          # Step 6.5: Validated ITS2 results
 │   ├── blast_parser_its2_summary.csv
 │   ├── {sample}_blast_results-all_hits.tsv
 │   └── {sample}_parsed_contig.fasta
-├── blast_round2b-ITS1/            # Step 9: ITS1-specific BLAST results
-│   └── {sample}_blast.tsv
-├── blast_parsed2b-ITS1/           # Step 10: Validated ITS1 results
-│   ├── blast_parser_its2_summary.csv
+├── 07_blast_round2b-ITS1/            # Step 7: ITS1-specific BLAST results
+│   └── {sample}_blast_results.tsv
+├── 07a_blast_parsed2b-ITS1/          # Step 7.5: Validated ITS1 results
+│   ├── blast_parser_its1_summary.csv
 │   ├── {sample}_blast_results-all_hits.tsv
 │   └── {sample}_parsed_contig.fasta
-├── its_extraction/                # Step 11: Extracted ITS sequences
+├── 08_its_primer_extraction/         # Step 8: Extracted ITS sequences
 │   ├── ITS1/
 │   │   └── {sample}_ITS1.fa
 │   ├── ITS2/
@@ -542,8 +536,7 @@ output_base/
 │   │   └── {sample}_ITS_complete.fa
 │   ├── extraction_summary.csv
 │   └── summary_report.txt
-├── logs/                          # Detailed logs for each step
-└── final_results_dir/             # Step 12: Final aggregated outputs
+└── final_results_dir/                # Step 9: Final aggregated outputs
     ├── merged_summary_{date}.csv
     ├── pass_fastas/
     │   └── {sample}_{description}.fasta
