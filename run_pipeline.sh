@@ -63,11 +63,11 @@ BLAST_PARSED_OUTPUT_ROUND1="${OUTPUT_BASE}/05a_blast_parsed1"
 BLAST_PARSED_OUTPUT_ITS2="${OUTPUT_BASE}/06a_blast_parsed2a-ITS2"
 BLAST_PARSED_OUTPUT_ITS1="${OUTPUT_BASE}/07a_blast_parsed2b-ITS1"
 ITS_EXTRACTION_OUTPUT="${OUTPUT_BASE}/08_its_primer_extraction"
-# Created by its_a_summary_compiler.py, not by create_dir below
+# Created by itsfun-summary, not by create_dir below
 FINAL_RESULTS_OUTPUT="${OUTPUT_BASE}/final_results_dir"
 
 ## Configurable parameters
-# UNITEd.py parameters
+# itsfun-refs parameters
 NUMBER_REFS="20"
 TAX_RANK="genus"
 UNITED_SUMMARY="UNITEd_summary.csv"
@@ -148,6 +148,18 @@ create_dir() {
     fi
 }
 
+# Function to check a pipeline command is on PATH
+# The pipeline steps are installed as console scripts by the its-fun-2-map
+# package (pip install its-fun-2-map), so they no longer need to be run from
+# the repository root.
+check_command() {
+    if ! command -v "$1" >/dev/null 2>&1; then
+        log_error "Required command not found on PATH: $1"
+        log_error "Install the pipeline with: pip install its-fun-2-map"
+        exit 1
+    fi
+}
+
 # Function to check if file exists
 check_file() {
     if [ ! -f "$1" ]; then
@@ -173,6 +185,15 @@ log_info "Log file: ${LOG_FILE}"
 log_info "Conda env: ${CONDA_PREFIX}"
 log_info "which python = $(which python)"
 log_info "python version = $(python --version 2>&1)"
+
+# Check the its-fun-2-map console scripts are installed and on PATH
+log_info "Checking pipeline commands..."
+for cmd in itsfun-qc itsfun-lineage itsfun-refs itsfun-map itsfun-assemble \
+           itsfun-blast1 itsfun-blast1-parse itsfun-blast2 itsfun-blast-parse \
+           itsfun-extract itsfun-summary; do
+    check_command "${cmd}"
+done
+log_info "All pipeline commands found"
 
 # Check for required files
 log_info "Checking required input files..."
@@ -212,7 +233,7 @@ log_info "Output directory: ${FASTP_OUTPUT}"
 
 if [ "$spreadsheet_filepaths" = "YES" ]; then
    log_info "Filepaths specified in ${TRACKING_SHEET}"
-   python fastp_module.py \
+   itsfun-qc \
        --output "${FASTP_OUTPUT}" \
        --tracking_sheet "${TRACKING_SHEET}" \
        --column_name "${COLUMN_NAME}" \
@@ -224,7 +245,7 @@ fi
 
 if [ "$spreadsheet_filepaths" = "NO" ]; then
    log_info "Filepaths not specified; using input directory ${INPUT_DIR}"
-   python fastp_module.py \
+   itsfun-qc \
        --output "${FASTP_OUTPUT}" \
        --tracking_sheet "${TRACKING_SHEET}" \
        --column_name "${COLUMN_NAME}" \
@@ -238,15 +259,15 @@ fi
 
 #===============================================================================
 
-# Step 2: UNITEd.py Analysis
+# Step 2: itsfun-refs Analysis
 log_section "STEP 2: UNITEd PSEUDO-REFERENCE SEQUENCE RETRIEVAL"
-log_info "Starting UNITEd.py search..."
+log_info "Starting itsfun-refs search..."
 log_info "Database: ${UNITE_DB_PATH}"
 log_info "Taxonomic rank: ${TAX_RANK}"
 log_info "Number of sequences: ${NUMBER_REFS}"
 
 if [ "$need_lineage" = "YES" ]; then
-   python pull_ncbi_lineage.py \
+   itsfun-lineage \
        --input_csv "${TRACKING_SHEET}" \
        --output_csv "${UNITED_OUTPUT}/tracking_with_lineage.csv" \
        --email "${EMAIL}" \
@@ -259,7 +280,7 @@ if [ "$need_lineage" = "YES" ]; then
 fi
 
 
-python UNITEd.py \
+itsfun-refs \
    --tracking_sheet "${TRACKING_SHEET}" \
    --unite_db "${UNITE_DB_PATH}" \
    --output "${UNITED_OUTPUT}" \
@@ -271,7 +292,7 @@ python UNITEd.py \
    --diversity \
    --log_file "${LOGS}/UNITEd.log" \
    --traverse family
-check_status "UNITEd.py sequence retrieval"
+check_status "itsfun-refs sequence retrieval"
 
 #===============================================================================
 
@@ -283,7 +304,7 @@ log_info "Reference directory: ${UNITED_OUTPUT}"
 log_info "Output directory: ${MAPPING_OUTPUT}"
 log_info "Aligner is: ${ALIGNER}"
 
-python mapping_module.py \
+itsfun-map \
    --input_dir "${FASTP_OUTPUT}" \
    --ref_dir "${UNITED_OUTPUT}" \
    --aligner "${ALIGNER}" \
@@ -303,7 +324,7 @@ log_info "Merged reads directory: ${MAPPING_OUTPUT}"
 log_info "Unmerged reads directory: ${FASTP_OUTPUT}"
 log_info "Assembly output directory: ${ASSEMBLY_OUTPUT}"
 
-python assembly_module.py \
+itsfun-assemble \
    --merged_dir "${MAPPING_OUTPUT}" \
    --unmerged_dir "${FASTP_OUTPUT}" \
    --output_dir "${ASSEMBLY_OUTPUT}" \
@@ -320,7 +341,7 @@ log_info "Query directory: ${ASSEMBLY_OUTPUT}"
 log_info "Database: ${BLAST_DB_GENERAL}"
 log_info "Output directory: ${BLAST_ROUND1_OUTPUT}"
 
-python blast_round1.py \
+itsfun-blast1 \
    --query_dir "${ASSEMBLY_OUTPUT}" \
    --database_file "${BLAST_DB_GENERAL}" \
    --output_dir "${BLAST_ROUND1_OUTPUT}" \
@@ -341,7 +362,7 @@ log_info "Minimum percent identity: ${MIN_PIDENT}"
 log_info "Assembly directory: ${ASSEMBLY_OUTPUT}"
 
 
-python blast_round1_parser.py \
+itsfun-blast1-parse \
    --input_dir "${BLAST_ROUND1_OUTPUT}" \
    --output_dir "${BLAST_PARSED_OUTPUT_ROUND1}" \
    --taxonomy_csv "${TRACKING_SHEET}" \
@@ -364,7 +385,7 @@ log_info "Previous BLAST results: ${BLAST_ROUND1_OUTPUT}"
 log_info "Database: ${BLAST_DB_ITS2}"
 log_info "Output directory: ${BLAST_ROUND2A_OUTPUT}"
 
-python blast_round2.py \
+itsfun-blast2 \
    --query_dir "${ASSEMBLY_OUTPUT}" \
    --blast_dir "${BLAST_ROUND1_OUTPUT}" \
    --database_file "${BLAST_DB_ITS2}" \
@@ -385,7 +406,7 @@ log_info "Minimum sequence length: ${MIN_LENGTH}"
 log_info "Minimum percent identity: ${MIN_PIDENT}"
 log_info "Assembly directory: ${ASSEMBLY_OUTPUT}"
 
-python blast_output_parser.py \
+itsfun-blast-parse \
    --input_dir "${BLAST_ROUND2A_OUTPUT}" \
    --output_dir "${BLAST_PARSED_OUTPUT_ITS2}" \
    --min_len "${MIN_LENGTH}" \
@@ -407,7 +428,7 @@ log_info "Previous BLAST results: ${BLAST_ROUND1_OUTPUT}"
 log_info "Database: ${BLAST_DB_ITS1}"
 log_info "Output directory: ${BLAST_ROUND2B_OUTPUT}"
 
-python blast_round2.py \
+itsfun-blast2 \
    --query_dir "${ASSEMBLY_OUTPUT}" \
    --blast_dir "${BLAST_ROUND1_OUTPUT}" \
    --database_file "${BLAST_DB_ITS1}" \
@@ -428,7 +449,7 @@ log_info "Minimum sequence length: ${MIN_LENGTH}"
 log_info "Minimum percent identity: ${MIN_PIDENT}"
 log_info "Assembly directory: ${ASSEMBLY_OUTPUT}"
 
-python blast_output_parser.py \
+itsfun-blast-parse \
    --input_dir "${BLAST_ROUND2B_OUTPUT}" \
    --output_dir "${BLAST_PARSED_OUTPUT_ITS1}" \
    --min_len "${MIN_LENGTH}" \
@@ -449,7 +470,7 @@ log_info "Input directory: ${BLAST_PARSED_OUTPUT_ITS2}"
 log_info "I.e. Using contigs confirmed to contain ITS2 from the correct taxon"
 log_info "Output directory: ${ITS_EXTRACTION_OUTPUT}"
 
-python its_primer_binding.py \
+itsfun-extract \
    --input "${BLAST_PARSED_OUTPUT_ITS2}" \
    --tracking_sheet "${TRACKING_SHEET}" \
    --column_name "${COLUMN_NAME}" \
@@ -466,12 +487,12 @@ log_info "Output directory: ${FINAL_RESULTS_OUTPUT}"
 
 if [[ "$different_naming" == "YES" ]]; then
     log_info "Running with renaming option using: ${NAMING_TSV}"
-    python its_a_summary_compiler.py \
+    itsfun-summary \
         "${OUTPUT_BASE}" \
         --naming_tsv "${NAMING_TSV}"
 else
     log_info "Running without renaming"
-    python its_a_summary_compiler.py \
+    itsfun-summary \
         "${OUTPUT_BASE}"
 fi
 check_status "ITS summary compiler"

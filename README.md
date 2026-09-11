@@ -27,7 +27,7 @@ A pipeline for processing fungal genome skims from museum specimens. Includes qu
 | spades   | 4.2.0                |
 | blast    | 2.17.0               |
 
-BBMap supplies `repair.sh`, which `mapping_module.py` uses to resynchronise mapped read
+BBMap supplies `repair.sh`, which `itsfun-map` uses to resynchronise mapped read
 pairs in Step 3; `openjdk` is its Java runtime. `htslib` is no longer listed - it is
 pulled in automatically as a library dependency of `samtools`.
 
@@ -46,7 +46,7 @@ pulled in automatically as a library dependency of `samtools`.
 - [jsonlite](https://cran.r-project.org/web/packages/jsonlite/index.html) 2.0.0 - used by `parse_fastp_json.R`; `its_decision_making.R` needs only base R
 
 ### Custom tool packages
- - its_fun_tools - a local module, not an installed package. Run the scripts from the repository directory, or put it on `PYTHONPATH`.
+ - `its_fun_2_map.its_fun_tools` - shared helpers, installed as part of the `its-fun-2-map` package. No `PYTHONPATH` fiddling and no need to run from the repository directory.
  - [seqpy-tools](https://github.com/museomics/seqpy_tools) 0.1.0 ([available via pip](https://pypi.org/project/seqpy-tools/)) - imported by every module in the pipeline
 
 ### Databases
@@ -62,6 +62,43 @@ All dependencies are included in `its-fun-2-map.yaml`. A conda environment can b
 conda env create -f its-fun-2-map.yaml
 conda activate its-fun-2-map
 ```
+
+### Installing the pipeline
+The Python steps are distributed as the `its-fun-2-map` package. Install it into the
+activated conda environment:
+```bash
+pip install its-fun-2-map
+```
+Or, to work from a clone:
+```bash
+git clone https://github.com/museomics/its-fun-2-map.git
+cd its-fun-2-map
+pip install -e .
+```
+
+The conda environment is still required either way: the pipeline shells out to fastp,
+seqkit, bwa, samtools, BBMap (`repair.sh`), SPAdes, BLAST+ and R, none of which are
+pip-installable.
+
+Installing puts one command per pipeline step on your `PATH`, so steps can be run from
+any directory:
+
+| Command | Step | Module |
+|---------|------|--------|
+| `itsfun-qc` | 1 - Quality control | `fastp_module` |
+| `itsfun-refs` | 2 - Pseudo-reference retrieval | `UNITEd` |
+| `itsfun-map` | 3 - Read mapping & baiting | `mapping_module` |
+| `itsfun-assemble` | 4 - Contig assembly | `assembly_module` |
+| `itsfun-blast1` | 5 - BLASTn round 1 | `blast_round1` |
+| `itsfun-blast1-parse` | 5.5 - Round 1 parsing & validation | `blast_round1_parser` |
+| `itsfun-blast2` | 6, 7 - BLASTn round 2 (ITS2/ITS1) | `blast_round2` |
+| `itsfun-blast-parse` | 6.5, 7.5 - Round 2 parsing & validation | `blast_output_parser` |
+| `itsfun-extract` | 8 - ITS primer binding & extraction | `its_primer_binding` |
+| `itsfun-summary` | 9 - Summary metrics aggregation | `its_a_summary_compiler` |
+| `itsfun-lineage` | helper - add NCBI lineages to a tracking sheet | `pull_ncbi_lineage` |
+
+Every command takes `--help`. Each is also runnable as a module, e.g.
+`python -m its_fun_2_map.fastp_module --help`.
 
 ## Pipeline Overview
 The pipeline processes raw paired-end sequencing reads from fungal museum specimens through quality control, reference-guided read enrichment, assembly, and multi-round BLAST validation to extract and validate ITS barcode sequences.
@@ -79,7 +116,7 @@ Raw Reads → QC → Reference Retrieval → Read Mapping → Assembly → BLAST
 ---
 
 
-## Step 1: Quality Control (`fastp_module.py`)
+## Step 1: Quality Control (`itsfun-qc`)
 
 Quality control processing of raw paired-end reads using fastp with a two-stage approach.
 
@@ -115,7 +152,7 @@ Quality control processing of raw paired-end reads using fastp with a two-stage 
 
 ---
 
-## Step 2: Pseudo-Reference Sequence Retrieval (`UNITEd.py`)
+## Step 2: Pseudo-Reference Sequence Retrieval (`itsfun-refs`)
 Retrieves taxonomically relevant reference sequences from the UNITE database using NCBI taxonomy matching.
 
 **Process:**
@@ -146,7 +183,7 @@ Retrieves taxonomically relevant reference sequences from the UNITE database usi
 
 ---
 
-## Step 3: Read Mapping & Baiting (`mapping_module.py`)
+## Step 3: Read Mapping & Baiting (`itsfun-map`)
 Maps quality-filtered reads to retrieved reference sequences using BWA to enrich for target ITS regions. Supports both modern DNA (BWA-MEM) and ancient/historical DNA (BWA-ALN) alignment strategies.
 
 **Alignment Algorithms:**
@@ -176,7 +213,7 @@ Maps quality-filtered reads to retrieved reference sequences using BWA to enrich
 
 ---
 
-## Step 4: Contig Assembly (`assembly_module.py`)
+## Step 4: Contig Assembly (`itsfun-assemble`)
 Assembles mapped reads into contigs using SPAdes with a multi-stage fallback strategy to maximise assembly success.
 
 **Assembly Strategy:**
@@ -209,7 +246,7 @@ Assembles mapped reads into contigs using SPAdes with a multi-stage fallback str
  
 ---
 
-## Step 5: BLASTn - Round 1 (General Database) (`blast_round1.py`)
+## Step 5: BLASTn - Round 1 (General Database) (`itsfun-blast1`)
 Searches assembled scaffolds against the general UNITE database for initial taxonomic identification.
 
 **Process:**
@@ -231,7 +268,7 @@ Searches assembled scaffolds against the general UNITE database for initial taxo
 
 ---
 
-## Step 5.5: BLASTn Round 1 Parsing & Taxonomic Validation (`blast_round1_parser.py`)
+## Step 5.5: BLASTn Round 1 Parsing & Taxonomic Validation (`itsfun-blast1-parse`)
 Parses BLAST Round 1 output and validates taxonomic assignments against expected taxonomy with cascading taxonomic rank matching.
 
 **Taxonomic Validation Strategy:**
@@ -273,7 +310,7 @@ The parser attempts to match BLAST hits against expected taxonomy using a cascad
 
 ---
 
-## Step 6: BLASTn - Round 2a (ITS2-Specific) (`blast_round2.py`)
+## Step 6: BLASTn - Round 2a (ITS2-Specific) (`itsfun-blast2`)
 Searches validated contigs against the UCHIME ITS2 reference database for region-specific validation. This step uses `seqkit grep` to extract only the contigs that passed Round 1 validation before running BLAST.
 
 **Process:**
@@ -297,7 +334,7 @@ Searches validated contigs against the UCHIME ITS2 reference database for region
 
 ---
 
-## Step 6.5: BLASTn Parsing & Validation (ITS2) (`blast_output_parser.py`)
+## Step 6.5: BLASTn Parsing & Validation (ITS2) (`itsfun-blast-parse`)
 Parses ITS2-specific BLAST results and applies multi-tier taxonomic validation with cascading fallbacks from family to genus to species level.
 
 **Multi-Tier Taxonomy Matching Logic:**
@@ -338,7 +375,7 @@ When expected family is empty (fallback to genus):
 
 ---
 
-## Step 7: BLASTn - Round 2b (ITS1-Specific) (`blast_round2.py`)
+## Step 7: BLASTn - Round 2b (ITS1-Specific) (`itsfun-blast2`)
 Parallel analysis searching against UCHIME ITS1 reference database. Uses the same workflow as Step 7 but with the ITS1-specific database.
 
 **Input:**
@@ -354,7 +391,7 @@ Parallel analysis searching against UCHIME ITS1 reference database. Uses the sam
 
 ---
 
-## Step 7.5: BLASTn Parsing & Validation (ITS1) (`blast_output_parser.py`)
+## Step 7.5: BLASTn Parsing & Validation (ITS1) (`itsfun-blast-parse`)
 Parses ITS1-specific BLAST results using the same multi-tier taxonomic validation as Step 8.
 
 **Input:**
@@ -368,7 +405,7 @@ Parses ITS1-specific BLAST results using the same multi-tier taxonomic validatio
 
 ---
 
-## Step 8: ITS Primer Binding & Extraction (`its_primer_binding.py`)
+## Step 8: ITS Primer Binding & Extraction (`itsfun-extract`)
 Identifies primer binding sites and extracts ITS sequences from validated contigs using `seqkit amplicon`. Uses standard ITS primers from White et al. (1990) by default, with support for custom primer sets.
  
 **Default Primers ([White et al. 1990](https://www.sciencedirect.com/science/chapter/edited-volume/abs/pii/B9780123721808500421?via%3Dihub)):**
@@ -425,7 +462,7 @@ MyRegion	FWD1	REV1
 ---
  
 
-## Step 9: Summary Metrics Aggregation (`its_a_summary_compiler.py`)
+## Step 9: Summary Metrics Aggregation (`itsfun-summary`)
 Compiles comprehensive summary statistics across all pipeline steps, performs contig analysis to resolve ITS1/ITS2 results, and prepares final output FASTAs for submission.
 
 **Process:**
@@ -563,7 +600,7 @@ The pipeline accepts CSV or XLSX tracking sheets with the following columns:
 - Sample ID column (configurable via `--column_name` or `--id_header`)
 - Taxid column (for UNITEd step, configurable via `--taxid_header`)
 
-**Optional columns (for fastp_module.py):**
+**Optional columns (for `itsfun-qc`):**
 - `forward` / `fwd` - path to forward reads
 - `reverse` / `rev` - path to reverse reads
 
@@ -572,14 +609,14 @@ If forward/reverse columns are present, file paths are read directly from the tr
 **For taxonomy validation (blast parsers):**
 - `Kingdom`, `Phylum`, `Class`, `Order`, `Family`, `Genus`, `Species` - taxonomic hierarchy columns
 
-If your spreadsheet doesn't contain taxonomic hierarchy columns, you can use the helper script `pull_ncbi_lineage.py`. This script will take any spreadsheet (both CSV and XLSX allowed) and queries all taxonomic IDs within in using NCBI Entrez. It then appends the taxonomic hierarchy columns to the spreadsheet. Outputs a log file and a CSV to your working directory for downstream use. 
+If your spreadsheet doesn't contain taxonomic hierarchy columns, you can use the helper command `itsfun-lineage`. This will take any spreadsheet (both CSV and XLSX allowed) and queries all taxonomic IDs within in using NCBI Entrez. It then appends the taxonomic hierarchy columns to the spreadsheet. Outputs a log file and a CSV to your working directory for downstream use. 
 
 If using the pipeline shell script, this can be opted in by changing "need_lineage" to "YES" in [Advanced Usage: Configurable paramaters](https://github.com/museomics/its-fun-2-map/blob/main/tutorial.md). 
 
 ```
 ## Configurable parameters
-# UNITEd.py parameters
-need_lineage="NO"     #change to "YES" to use pull_ncbi_lineage.py
+# itsfun-refs parameters
+need_lineage="NO"     #change to "YES" to use itsfun-lineage
 
 ```
 

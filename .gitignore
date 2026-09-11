@@ -1,0 +1,29 @@
+# Python packaging / build artefacts
+build/
+dist/
+*.egg-info/
+*.egg
+MANIFEST
+
+# Byte-compiled
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+
+# Pipeline run artefacts
+*.log

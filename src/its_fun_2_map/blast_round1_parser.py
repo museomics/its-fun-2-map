@@ -683,7 +683,7 @@ def update_summary_with_contig_paths(output_dir):
     df.to_csv(summary_file, index=False)
     logger.info("  Updated %d contig paths in summary CSV", updated_count)
 
-def main(args):
+def run(args):
     '''Main function to parse arguments and process BLAST TSV files.'''
 
     # Initialise set up:
@@ -765,12 +765,7 @@ def main(args):
         # Update the summary file with contig paths
         update_summary_with_contig_paths(args.output_dir)
 
-if __name__ == "__main__":
-    if len(sys.argv) == 1:
-        parser = argparse.ArgumentParser()
-        parser.print_help()
-        sys.exit(1)
-
+def build_parser():
     parser = argparse.ArgumentParser(description='Process BLAST TSV files \
         to extract top hits per query')
     parser.add_argument('-i', '--input_dir', required=True, help='Directory containing BLAST TSV \
@@ -795,6 +790,25 @@ if __name__ == "__main__":
         the IDs matching filenames')
     parser.add_argument('--allow_all', action='store_true',
         help='If set, allows multiple contig hits to PASS without filtering')
+    return parser
 
-    args = parser.parse_args()
-    main(args)
+
+def main(argv=None):
+    argv = sys.argv[1:] if argv is None else list(argv)
+
+    parser = build_parser()
+
+    # Called with no arguments: print usage rather than argparse's terse
+    # "the following arguments are required" error.
+    if not argv:
+        parser.print_help()
+        return 1
+
+    args = parser.parse_args(argv)
+
+    run(args)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

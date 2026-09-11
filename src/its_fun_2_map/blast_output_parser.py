@@ -51,7 +51,7 @@ from pathlib import Path
 from collections import defaultdict
 from datetime import datetime
 from seqpy_tools import setup_logging
-from its_fun_tools import log_and_print    
+from .its_fun_tools import log_and_print    
 
 
 def count_contigs_in_assembly(assembly_dir, sample_id):
@@ -931,7 +931,7 @@ def update_summary_with_contig_paths(output_dir, summary_csv='taxonomy_validatio
     df.to_csv(summary_file, index=False)
     log_and_print(f"  Updated {updated_count} contig paths in summary CSV")    
     
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description='Process BLAST TSV files to extract top hits per query')
     parser.add_argument('--input_dir', required=True, help='Directory containing BLAST TSV files (required)')
     parser.add_argument('--taxonomy_csv', required=True,
@@ -953,7 +953,7 @@ def main():
     parser.add_argument('--summary_csv', default='taxonomy_validation_summary.csv',
                    help='Name for the taxonomy validation summary CSV file (default: taxonomy_validation_summary.csv)')
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     
     # Set up log file with timestamp if not provided
     if args.log_file is None:
@@ -1089,5 +1089,7 @@ def main():
             # Update the summary file with contig paths
             update_summary_with_contig_paths(output_dir, args.summary_csv)
 
+    return 0
+
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

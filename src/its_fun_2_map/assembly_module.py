@@ -1,3 +1,4 @@
+import sys
 import os
 import glob
 import subprocess
@@ -248,7 +249,7 @@ def write_summary_csv(jobs, sample_paths, sample_metrics, output_dir, csv_path, 
     logger.info(f"Summary CSV written successfully with {len(csv_data)} samples")
 
 
-def main(args):    
+def run(args):    
     # Setup
     os.makedirs(args.output_dir, exist_ok=True)
 
@@ -481,7 +482,7 @@ def main(args):
     else:
         logger.info("--summary_csv not specified, skipping CSV summary.")
 
-if __name__ == "__main__":
+def build_parser():
     parser = argparse.ArgumentParser(description="Run SPAdes on merged + unmerged reads in parallel.")
     parser.add_argument("--merged_dir", required=True, help="Path to merged mapped reads (e.g., *_mapped.fastq)")
     parser.add_argument("--unmerged_dir", required=True, help="Path to unmerged read pairs (e.g., *_unmerged_1.fq, *_unmerged_2.fq)")
@@ -490,13 +491,23 @@ if __name__ == "__main__":
     parser.add_argument("--k", type=str, default="21,33,55", help="Comma-separated k-mer sizes for SPAdes.")
     parser.add_argument("--log_file", help="Log file path; if not provided, a timestamped `assembly_log` file will be created.")
     parser.add_argument("--summary_csv", help="Optional path to write a CSV summary of assembly results.")
+    return parser
 
-    args = parser.parse_args()
-    main(args)
 
-## Example usage: 
-#python assembly_module.py \
-#  --merged_dir ./mapped_reads \
-#  --unmerged_dir ./fastp_processed \
-#  --output_dir ./assemblies \
-#  --summary_csv ./assembly_summary.csv
+def main(argv=None):
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    run(args)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+## Example usage:
+#  itsfun-assemble \
+#    --merged_dir ./mapped_reads \
+#    --unmerged_dir ./fastp_processed \
+#    --output_dir ./assemblies \
+#    --summary_csv ./assembly_summary.csv

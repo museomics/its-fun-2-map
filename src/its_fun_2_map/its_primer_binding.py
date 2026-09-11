@@ -216,7 +216,7 @@ def run_seqkit_amplicon(input_file, output_file, forward_primer, reverse_primer,
         return False
 
 
-def parse_args():
+def parse_args(argv=None):
     """Parse command line arguments"""
     parser = argparse.ArgumentParser(
         description='ITS primer binding script using seqkit amplicon',
@@ -276,7 +276,7 @@ Advanced usage with custom primers and regions:
         '--log_file',
         help='Log file name (default: its_primer_binding_<TIMESTAMP>.log)'
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     # Validate input directory exists
     if not args.input.exists():
@@ -301,8 +301,8 @@ Advanced usage with custom primers and regions:
     return args
 
 
-def main():
-    args = parse_args()
+def main(argv=None):
+    args = parse_args(argv)
 
     input_dir = args.input
     output_dir = args.output
@@ -569,5 +569,7 @@ def main():
     for region_name in REGIONS:
         logger.info(f"- {region_name}: {output_dir / region_name}/")
 
+    return 0
+
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

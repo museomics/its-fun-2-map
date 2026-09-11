@@ -7,7 +7,7 @@ import pandas as pd
 import pathlib
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from its_fun_tools import load_name_ids, blast_task
+from .its_fun_tools import load_name_ids, blast_task
 from seqpy_tools import xlsx2csv, setup_logging
 
 ### Author: Maria Kamouyiaros & Dan Parsons (NHMUK)
@@ -58,7 +58,7 @@ def run_blast_pipeline(database_file, makeblastdb, query_dir, output_dir, prefix
 
     logger.info(f"[DONE] All tasks complete. Processed {len(tasks)} samples, skipped {len(skipped_samples)} samples.")
 
-if __name__ == "__main__":
+def build_parser():
     parser = argparse.ArgumentParser(description="Run BLAST for all scaffolds.fasta matches per genome ID.")
     parser.add_argument("--database_file", required=True, help="Database file")
     parser.add_argument("--makeblastdb", action="store_true", help="Create BLAST DB from --database_file")
@@ -71,8 +71,12 @@ if __name__ == "__main__":
     parser.add_argument("--max_workers", type=int, default=4, help="Maximum parallel workers")
     parser.add_argument("--evalue", default="1e-5", help="E-value threshold passed to blastn (default: 1e-5)")
     parser.add_argument("--log_file", help="Log file path; if not provided, a timestamped `blast1_log` file will be created")
+    return parser
 
-    args = parser.parse_args()
+
+def main(argv=None):
+    parser = build_parser()
+    args = parser.parse_args(argv)
 
     name_ids = load_name_ids(args.tracking_sheet, args.column_name, sheet=args.sheet)
     if not name_ids:
@@ -89,3 +93,8 @@ if __name__ == "__main__":
         log_file=args.log_file,
         evalue=args.evalue,
     )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

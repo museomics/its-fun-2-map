@@ -1,0 +1,83 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "its-fun-2-map"
+version = "1.0.0"
+description = "A pipeline for extracting and validating fungal ITS barcode sequences from museum specimen genome skims"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "M. Kamouyiaros" },
+    { name = "D. Parsons" },
+]
+maintainers = [
+    { name = "Natural History Museum, London" },
+]
+keywords = [
+    "bioinformatics",
+    "fungi",
+    "ITS",
+    "barcode",
+    "metabarcoding",
+    "genome-skimming",
+    "museomics",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: R",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+
+# Python dependencies only. The pipeline also shells out to external tools that
+# are NOT pip-installable - fastp, seqkit, bwa, samtools, BBMap (repair.sh),
+# SPAdes, BLAST+ and R - so a conda environment remains a prerequisite. See
+# its-fun-2-map.yaml and the Dependencies section of README.md.
+dependencies = [
+    "biopython",
+    "pandas",
+    "rpy2",
+    "seqpy-tools",
+]
+
+[project.urls]
+Homepage = "https://github.com/museomics/its-fun-2-map"
+Repository = "https://github.com/museomics/its-fun-2-map"
+Issues = "https://github.com/museomics/its-fun-2-map/issues"
+
+[project.scripts]
+# Step 1 - Quality control
+itsfun-qc = "its_fun_2_map.fastp_module:main"
+# Step 2 - Pseudo-reference sequence retrieval
+itsfun-refs = "its_fun_2_map.UNITEd:main"
+# Step 3 - Read mapping and baiting
+itsfun-map = "its_fun_2_map.mapping_module:main"
+# Step 4 - Contig assembly
+itsfun-assemble = "its_fun_2_map.assembly_module:main"
+# Step 5 - BLASTn round 1 (general database) and its parser
+itsfun-blast1 = "its_fun_2_map.blast_round1:main"
+itsfun-blast1-parse = "its_fun_2_map.blast_round1_parser:main"
+# Steps 6 and 7 - BLASTn round 2 (ITS1/ITS2-specific) and its parser
+itsfun-blast2 = "its_fun_2_map.blast_round2:main"
+itsfun-blast-parse = "its_fun_2_map.blast_output_parser:main"
+# Step 8 - ITS primer binding and extraction
+itsfun-extract = "its_fun_2_map.its_primer_binding:main"
+# Step 9 - Summary metrics aggregation
+itsfun-summary = "its_fun_2_map.its_a_summary_compiler:main"
+# Helper - add NCBI lineages to a tracking sheet
+itsfun-lineage = "its_fun_2_map.pull_ncbi_lineage:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# parse_fastp_json.R and its_decision_making.R are sourced at runtime via rpy2
+# using Path(__file__).parent, so they must be installed alongside the modules.
+[tool.setuptools.package-data]
+its_fun_2_map = ["*.R"]

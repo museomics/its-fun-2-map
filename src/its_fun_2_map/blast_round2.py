@@ -9,7 +9,7 @@ import pandas as pd
 import argparse
 import sys
 from datetime import datetime
-from its_fun_tools import load_name_ids, cleanup_temp_dir, blast_task
+from .its_fun_tools import load_name_ids, cleanup_temp_dir, blast_task
 from seqpy_tools import xlsx2csv, setup_logging
 
 ### Author: Maria Kamouyiaros
@@ -116,7 +116,7 @@ def run_seqkit_and_blast(tracking_sheet, column_name, query_dir, blast_dir, data
     logger.info("[DONE] All tasks complete.")
 
 
-if __name__ == "__main__":
+def build_parser():
     parser = argparse.ArgumentParser(description="Run seqkit+BLAST pipeline on scaffolds.")
     parser.add_argument("--tracking_sheet", required=True, help="CSV/XLSX tracking sheet")
     parser.add_argument("--column_name", required=True, help="Column name in tracking sheet with sample IDs")
@@ -130,8 +130,12 @@ if __name__ == "__main__":
     parser.add_argument("--max_workers", type=int, default=4, help="Maximum parallel workers")
     parser.add_argument("--evalue", default="1e-5", help="E-value threshold passed to blastn (default: 1e-5)")
     parser.add_argument("--log_file", help="Log file path; if not provided, a timestamped `blast2_log` file will be created")
+    return parser
 
-    args = parser.parse_args()
+
+def main(argv=None):
+    parser = build_parser()
+    args = parser.parse_args(argv)
 
     run_seqkit_and_blast(
         tracking_sheet=args.tracking_sheet,
@@ -147,3 +151,8 @@ if __name__ == "__main__":
         evalue=args.evalue,
         sheet=args.sheet,
     )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

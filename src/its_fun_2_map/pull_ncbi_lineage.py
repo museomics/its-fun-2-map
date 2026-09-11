@@ -1,3 +1,4 @@
+import sys
 import os
 import pathlib
 import pandas as pd
@@ -8,7 +9,7 @@ import logging
 import argparse
 from Bio import Entrez
 from datetime import datetime
-from its_fun_tools import get_ncbi_lineage, log_and_print
+from .its_fun_tools import get_ncbi_lineage, log_and_print
 from seqpy_tools import xlsx2csv, setup_logging
 
 # Increase time between and number of tries used by entrez (from go_fetch.py)
@@ -65,7 +66,7 @@ def add_ncbi_lineages_to_csv(input_csv, output_csv, taxcolumn, email, logger, ap
     df.to_csv(output_csv, index=False)
     logger.info(f"Lineage data added and saved to {output_csv}")
 
-def main(args):
+def run(args):
     # Set up logging
     if args.log_file is None:
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -76,9 +77,7 @@ def main(args):
     # Add lineages to CSV
     add_ncbi_lineages_to_csv(args.input_csv, args.output_csv, args.taxcolumn, args.email, logger, args.api_key, args.sheet)
 
-if __name__ == "__main__":
-
-    # Set up argument parser
+def build_parser():
     parser = argparse.ArgumentParser(description="Add NCBI taxonomic lineages to a CSV file based on taxids.")
     parser.add_argument("--input_csv", help="Path to the input CSV file.")
     parser.add_argument("--output_csv", help="Path to the output CSV file.")
@@ -87,6 +86,16 @@ if __name__ == "__main__":
     parser.add_argument("--taxcolumn", help="Column name in CSV that contains taxids.", default="taxid")
     parser.add_argument("--log_file", help="Path to log file.", default=None)
     parser.add_argument("--sheet", help="Sheet number to read if input is XLSX. Default is 1.", type=int, default=1)
-    args = parser.parse_args()
+    return parser
 
-    main(args)
+
+def main(argv=None):
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    run(args)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

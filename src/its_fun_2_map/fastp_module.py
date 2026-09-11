@@ -311,7 +311,7 @@ def get_read_ids2(input_source, logger, paired=False, prefix=None, suffix=None, 
 
     raise FileNotFoundError(f"'{input_source}' is neither a valid file nor directory")
 
-def main(args):
+def run(args):
     """The main function to handle argument parsing and workflow of module."""
 
     # Set up
@@ -496,12 +496,7 @@ def main(args):
     logger.info("All samples processed!")
 
 
-if __name__ == "__main__":
-    if len(sys.argv) == 1:
-        parser = argparse.ArgumentParser()
-        parser.print_help()
-        sys.exit(1)
-
+def build_parser():
     parser = argparse.ArgumentParser(description="Pre-process and process raw read data using fastp.")
     parser.add_argument("--input_dir", type=str, required=False, help="Path to input directory containing FASTQ files. Required when tracking sheet doesn't have forward/reverse columns, or when not using a tracking sheet.")
     parser.add_argument("--output_dir", type=str, required=True, help="Path to output directory.")
@@ -516,9 +511,22 @@ if __name__ == "__main__":
     parser.add_argument("--qualified_quality_phred", type=int, default=30, help="Phred quality score below which a base is counted as unqualified during trimming (fastp's -q/--qualified_quality_phred). Default: 30. Note fastp's own default is 15.")
     parser.add_argument("--fastp_extra_args", type=str, required=False, help="Extra arguments passed to the trimming fastp call, given as a single quoted string, e.g. --fastp_extra_args \"--trim_front1 10 --trim_front2 10\". Cannot be used to set -q/--qualified_quality_phred or -w/--thread; use the dedicated arguments instead.")
     parser.add_argument("--log_file", help="Log file path; if not provided, a timestamped `fastp_log` file will be created")
+    return parser
 
-    args = parser.parse_args()
-    
+
+def main(argv=None):
+    argv = sys.argv[1:] if argv is None else list(argv)
+
+    parser = build_parser()
+
+    # Called with no arguments: print usage rather than argparse's terse
+    # "the following arguments are required" error.
+    if not argv:
+        parser.print_help()
+        return 1
+
+    args = parser.parse_args(argv)
+
     # Validate argument combinations
     if args.tracking_sheet and not args.column_name:
         parser.error("--column_name is required when using --tracking_sheet")
@@ -532,10 +540,15 @@ if __name__ == "__main__":
     # Fail fast on conflicting fastp extras, before any logging or processing
     check_fastp_extra_args(parse_fastp_extra_args(args.fastp_extra_args), parser=parser)
 
-    main(args)
+    run(args)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
 
 ##Example usage:
-#python fastp_module.py --input_dir raw_reads --output_dir fastp_processed --fastp_extra_args "--trim_front1 10 --trim_front2 10"
-#python fastp_module.py --tracking_sheet samples.csv --column_name ID --output_dir fastp_processed
-#python fastp_module.py --tracking_sheet samples.csv --column_name ID --input_dir raw_reads --output_dir fastp_processed
-#python fastp_module.py --input_dir raw_reads --output_dir fastp_processed --threads 8 --fastp_threads 1 --qualified_quality_phred 20
+# itsfun-qc --input_dir raw_reads --output_dir fastp_processed --fastp_extra_args "--trim_front1 10 --trim_front2 10"
+# itsfun-qc --tracking_sheet samples.csv --column_name ID --output_dir fastp_processed
+# itsfun-qc --tracking_sheet samples.csv --column_name ID --input_dir raw_reads --output_dir fastp_processed
+# itsfun-qc --input_dir raw_reads --output_dir fastp_processed --threads 8 --fastp_threads 1 --qualified_quality_phred 20

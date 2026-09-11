@@ -10,7 +10,7 @@ import re
 from pathlib import Path
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from its_fun_tools import load_name_ids, cleanup_temp_dir, log_and_print
+from .its_fun_tools import load_name_ids, cleanup_temp_dir, log_and_print
 from seqpy_tools import repair_reads, setup_logging
 
 #### Date: 2025-08-04
@@ -330,7 +330,7 @@ def generate_mapping_summary(sample_ids, output_dir, aligner, logger):
     logger.info(f"Mapping summary saved to {summary_file}")
 
 
-def main(args):
+def run(args):
     
     # Setup
     os.makedirs(args.output_dir, exist_ok=True)
@@ -552,7 +552,7 @@ def main(args):
     logger.info("Compressing and cleaning up data directories")
     logger.info("All samples processed!")
 
-if __name__ == "__main__":
+def build_parser():
     parser = argparse.ArgumentParser(
         description="Map merged reads to per-sample references",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -566,6 +566,16 @@ if __name__ == "__main__":
     parser.add_argument("--sheet", type=int, default=0, help="Sheet index if XLSX file is used")
     parser.add_argument("--threads", type=int, default=4, help="Number of parallel jobs (not threads per job)")
     parser.add_argument("--log_file", help="Log file path; if not provided, a timestamped `mapping_log` file will be created")
+    return parser
 
-    args = parser.parse_args()
-    main(args)
+
+def main(argv=None):
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    run(args)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

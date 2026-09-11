@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import sys
 import os
 import glob
 import argparse
@@ -469,7 +470,7 @@ def n_taxa(y):
     return len(set(v))
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(
         description="Merge pipeline CSV outputs into a single summary table"
     )
@@ -506,7 +507,7 @@ def main():
         "See BOlD for futher information: https://v3.boldsystems.org/index.php/resources/handbook?chapter=3_submissions.html")
 
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     out_dir = Path(args.project_dir) / "final_results_dir"
     os.makedirs(out_dir, exist_ok=True)
@@ -582,6 +583,8 @@ def main():
     summary_df.to_csv(outfile, index=False)
     logger.info("Merged summary written to %s", outfile)
 
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

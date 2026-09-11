@@ -1146,12 +1146,12 @@ def write_summary_csv(summary_data, output_path, logger):
         raise
 
 
-def main():
+def main(argv=None):
     """Main function to orchestrate the UNITE sequence extraction process."""
 
     # Set up argument parser
     parser = setup_argument_parser()
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     # Set up logger
     if args.log_file is None:
@@ -1351,6 +1351,8 @@ def main():
     logger.info(f"Success rate: {(successful_matches/total_samples)*100:.1f}%")
     logger.info("="*50)
 
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
