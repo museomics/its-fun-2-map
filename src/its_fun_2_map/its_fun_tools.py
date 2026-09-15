@@ -86,7 +86,7 @@ def get_ncbi_lineage(taxid, email, logger, api_key=None):
     if api_key and api_key != "None":
         Entrez.api_key = api_key
     
-    log_and_print(f"Getting NCBI lineage for taxid: {taxid}")
+    log_and_print(f"Getting NCBI lineage for taxid: {taxid}", logger=logger)
     
     max_retries = 5
     base_delay = 10
@@ -126,13 +126,13 @@ def get_ncbi_lineage(taxid, email, logger, api_key=None):
             
         except (ValueError, urllib.error.HTTPError, urllib.error.URLError) as e:
             delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
-            log_and_print(f"Attempt {attempt+1}/{max_retries}: Error getting lineage for {taxid}: {str(e)}", level="warning")
+            log_and_print(f"Attempt {attempt+1}/{max_retries}: Error getting lineage for {taxid}: {str(e)}", level="warning", logger=logger)
             
             if attempt < max_retries - 1:
                 logger.info(f"Retrying in {delay:.2f} seconds...")
                 time.sleep(delay)
             else:
-                log_and_print(f"Failed to get lineage for {taxid} after {max_retries} attempts.", level="error")
+                log_and_print(f"Failed to get lineage for {taxid} after {max_retries} attempts.", level="error", logger=logger)
                 raise
     
     raise Exception(f"Failed to get lineage for {taxid}")
