@@ -425,7 +425,7 @@ def run(args):
         max_workers = args.threads or os.cpu_count()
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = [
-                executor.submit(run_bwa_mem_and_samtools, sid, infile, args.output_dir, temp_dir, reffile, 8, logger)
+                executor.submit(run_bwa_mem_and_samtools, sid, infile, args.output_dir, temp_dir, reffile, args.bwa_threads, logger)
                 for sid, infile, reffile in jobs
             ]
 
@@ -462,7 +462,7 @@ def run(args):
                 # Process merged file (single-end)
                 for merged_file in merged_files:
                     future = executor.submit(
-                        run_bwa_aln_and_samtools, sid, merged_file, args.output_dir, temp_dir, reffile, 8, logger, None
+                        run_bwa_aln_and_samtools, sid, merged_file, args.output_dir, temp_dir, reffile, args.bwa_threads, logger, None
                     )
                     futures[future] = f"{sid}_merged"
                 
@@ -470,7 +470,7 @@ def run(args):
                 if unmerged_1_files and unmerged_2_files:
                     if len(unmerged_1_files) == 1 and len(unmerged_2_files) == 1:
                         future = executor.submit(
-                            run_bwa_aln_and_samtools, sid, unmerged_1_files[0], args.output_dir, temp_dir, reffile, 8, logger, unmerged_2_files[0]
+                            run_bwa_aln_and_samtools, sid, unmerged_1_files[0], args.output_dir, temp_dir, reffile, args.bwa_threads, logger, unmerged_2_files[0]
                         )
                         futures[future] = f"{sid}_unmerged"
                     else:
@@ -565,6 +565,7 @@ def build_parser():
     parser.add_argument("--aligner", required=True, choices=["bwa-mem", "bwa-aln"], help="BWA algorithm to use: bwa-mem or bwa-aln")
     parser.add_argument("--sheet", type=int, default=0, help="Sheet index if XLSX file is used")
     parser.add_argument("--threads", type=int, default=4, help="Number of parallel jobs (not threads per job)")
+    parser.add_argument("--bwa_threads", type=int, default=8, help="Threads per BWA job")
     parser.add_argument("--log_file", help="Log file path; if not provided, a timestamped `mapping_log` file will be created")
     return parser
 

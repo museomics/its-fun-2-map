@@ -200,6 +200,15 @@ Maps quality-filtered reads to retrieved reference sequences using BWA to enrich
 5. Repairs paired-end read files to ensure synchronisation
 6. Generates mapping statistics
 
+**Parameters:**
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `--aligner` | - | BWA algorithm: `bwa-mem` or `bwa-aln` (required) |
+| `--threads` | 4 | Number of **samples** mapped in parallel (i.e. concurrent BWA jobs) |
+| `--bwa_threads` | 8 | Worker threads used **within** each BWA job (BWA's `-t`) |
+
+> **Note on threading.** As in Step 1, `--threads` and `--bwa_threads` multiply. Total worker threads is approximately `--threads x --bwa_threads`, so the defaults use around 32 threads, not 4. On a scheduler, set `--threads $SLURM_CPUS_PER_TASK --bwa_threads 1` to make the CPU request and actual usage match.
+
 **Input:**
   - Quality-filtered FASTQ files from Step 1 (`*_merged.fq`, `*_unmerged_1.fq`, `*_unmerged_2.fq`)
   - Per-sample reference FASTA files from Step 2 (`*_seed.fasta`)

@@ -74,6 +74,7 @@ UNITED_SUMMARY="UNITEd_summary.csv"
 
 # Mapping parameters
 ALIGNER="bwa-mem"
+BWA_THREADS="8"   # threads per BWA job; total threads is approximately --threads x BWA_THREADS
 
 # Assembly parameters
 ASSEMBLY_CSV="${ASSEMBLY_OUTPUT}/assembly_summary.csv"
@@ -312,6 +313,7 @@ itsfun-map \
    --tracking_sheet "${TRACKING_SHEET}" \
    --column_name "${COLUMN_NAME}" \
    --log_file "${LOGS}/mapping.log" \
+   --bwa_threads "${BWA_THREADS}" \
    --threads 2
 check_status "read mapping"
 
