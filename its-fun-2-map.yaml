@@ -23,4 +23,4 @@ dependencies:
   - pgzip=0.4.0          # imported at seqpy_tools module load
   - pip
   - pip:
-      - seqpy-tools==0.1.0
+      - seqpy-tools==0.1.2
