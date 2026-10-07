@@ -4,7 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "its-fun-2-map"
-version = "1.0.0"
+# Single source of truth: __version__ in src/its_fun_2_map/__init__.py
+dynamic = ["version"]
 description = "A pipeline for extracting and validating fungal ITS barcode sequences from museum specimen genome skims"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -40,11 +41,23 @@ classifiers = [
 # are NOT pip-installable - fastp, seqkit, bwa, samtools, BBMap (repair.sh),
 # SPAdes, BLAST+ and R - so a conda environment remains a prerequisite. See
 # its-fun-2-map.yaml and the Dependencies section of README.md.
+#
+# rpy2 must be built against an R installation. Install it from conda-forge
+# (as its-fun-2-map.yaml does) before pip-installing this package, so pip finds
+# it already satisfied and does not try to compile it.
 dependencies = [
     "biopython",
+    "openpyxl>=3.1",        # pandas.read_excel, used by seqpy_tools.xlsx2csv
     "pandas",
-    "rpy2",
-    "seqpy-tools",
+    "rpy2>=3.5",            # itsfun-qc and itsfun-summary source the bundled R scripts
+    "seqpy-tools>=0.1.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "build",
+    "pytest>=8",
+    "twine",
 ]
 
 [project.urls]
@@ -74,6 +87,9 @@ itsfun-summary = "its_fun_2_map.its_a_summary_compiler:main"
 # Helper - add NCBI lineages to a tracking sheet
 itsfun-lineage = "its_fun_2_map.pull_ncbi_lineage:main"
 
+[tool.setuptools.dynamic]
+version = { attr = "its_fun_2_map.__version__" }
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
@@ -81,3 +97,7 @@ where = ["src"]
 # using Path(__file__).parent, so they must be installed alongside the modules.
 [tool.setuptools.package-data]
 its_fun_2_map = ["*.R"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
