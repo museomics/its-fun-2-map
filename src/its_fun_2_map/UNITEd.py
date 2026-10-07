@@ -44,6 +44,7 @@ from Bio import Entrez
 from datetime import datetime
 from seqpy_tools import setup_logging
 from .its_fun_tools import get_ncbi_lineage
+from . import __version__
 
 # Increase time between and number of tries used by entrez (from go_fetch.py)
 Entrez.sleep_between_tries = 20 
@@ -86,6 +87,7 @@ Diversity functionality:
     - Prioritises even distribution over total sequence length
         """
     )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     
     parser.add_argument("--tracking_sheet", required=True, 
                         help="CSV file with 'ID' and 'taxid' columns. Specifically named columns can be set using parameters --id_header and --taxid_header")
@@ -123,7 +125,6 @@ Diversity functionality:
                         "'TAXID', 'tax_id', 'Tax_ID', 'TAX_ID', 'taxonomy_id', 'ncbi_taxid', or 'NCBI_TaxID'")
     parser.add_argument("--summary_csv", 
                         help="Generate detailed CSV summary with specified filename (will be placed in output directory)")
-    parser.add_argument("--version", action="version", version="1.3.0")
     parser.add_argument("--log_file", help="Log file path; if not provided, a timestamped `UNITEd_log` file will be created")
 
     return parser

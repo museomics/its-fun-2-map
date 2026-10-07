@@ -14,7 +14,7 @@
 # BLAST, and summary.
 #
 # Author: M. Kamouyiaros & D. Parsons (NHMUK)
-# Version: 1.0.0
+# Version: reported at runtime by the installed its-fun-2-map package
 #
 #===============================================================================
 
@@ -195,6 +195,7 @@ for cmd in itsfun-qc itsfun-lineage itsfun-refs itsfun-map itsfun-assemble \
     check_command "${cmd}"
 done
 log_info "All pipeline commands found"
+log_info "its-fun-2-map version = $(itsfun-map --version 2>&1)"
 
 # Check for required files
 log_info "Checking required input files..."

@@ -11,6 +11,7 @@ from Bio import Entrez
 from datetime import datetime
 from .its_fun_tools import get_ncbi_lineage, log_and_print
 from seqpy_tools import xlsx2csv, setup_logging
+from . import __version__
 
 # Increase time between and number of tries used by entrez (from go_fetch.py)
 Entrez.sleep_between_tries = 20
@@ -79,6 +80,7 @@ def run(args):
 
 def build_parser():
     parser = argparse.ArgumentParser(description="Add NCBI taxonomic lineages to a CSV file based on taxids.")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("--input_csv", help="Path to the input CSV file.")
     parser.add_argument("--output_csv", help="Path to the output CSV file.")
     parser.add_argument("--email", help="Email address for NCBI Entrez.")

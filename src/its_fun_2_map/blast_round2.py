@@ -11,6 +11,7 @@ import sys
 from datetime import datetime
 from .its_fun_tools import load_name_ids, cleanup_temp_dir, blast_task
 from seqpy_tools import xlsx2csv, setup_logging
+from . import __version__
 
 ### Author: Maria Kamouyiaros
 ### 2025-08-28 
@@ -118,6 +119,7 @@ def run_seqkit_and_blast(tracking_sheet, column_name, query_dir, blast_dir, data
 
 def build_parser():
     parser = argparse.ArgumentParser(description="Run seqkit+BLAST pipeline on scaffolds.")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("--tracking_sheet", required=True, help="CSV/XLSX tracking sheet")
     parser.add_argument("--column_name", required=True, help="Column name in tracking sheet with sample IDs")
     parser.add_argument("--sheet", type=int, required=False, help="(For XLSX input only) Sheet index (0-based)")

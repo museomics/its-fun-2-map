@@ -13,6 +13,7 @@ from rpy2.robjects import pandas2ri, default_converter
 import logging
 from Bio import SeqIO
 from seqpy_tools import setup_logging
+from . import __version__
 
 def find_csv_in_dir(project_dir, logger, custom):
     """Find CSV files in a directory (recursive)."""
@@ -474,6 +475,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(
         description="Merge pipeline CSV outputs into a single summary table"
     )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument(
         "project_dir",
         help="Project directory containing pipeline output CSV files",

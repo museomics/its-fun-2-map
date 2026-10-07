@@ -8,10 +8,10 @@ import csv
 from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from seqpy_tools import setup_logging
+from . import __version__
 
 #### Author: Maria Kamouyiaros & Daniel Parsons @ NHMUK
 #### Date: 2025-08-04
-#### VERSION: 7.3.0
 
 def get_scaffold_metrics(scaffolds_file):
     """
@@ -484,6 +484,7 @@ def run(args):
 
 def build_parser():
     parser = argparse.ArgumentParser(description="Run SPAdes on merged + unmerged reads in parallel.")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("--merged_dir", required=True, help="Path to merged mapped reads (e.g., *_mapped.fastq)")
     parser.add_argument("--unmerged_dir", required=True, help="Path to unmerged read pairs (e.g., *_unmerged_1.fq, *_unmerged_2.fq)")
     parser.add_argument("--output_dir", required=True, help="Directory to store SPAdes output.")

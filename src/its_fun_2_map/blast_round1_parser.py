@@ -9,6 +9,7 @@ from pathlib import Path
 from collections import defaultdict
 from datetime import datetime
 from seqpy_tools import setup_logging
+from . import __version__
 
 # BLAST output parser v3.0.0
 # Processes BLAST TSV files (outfmt 6) to extract best candidate contig based on blast results.
@@ -768,6 +769,7 @@ def run(args):
 def build_parser():
     parser = argparse.ArgumentParser(description='Process BLAST TSV files \
         to extract top hits per query')
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument('-i', '--input_dir', required=True, help='Directory containing BLAST TSV \
         files (required)')
     parser.add_argument('--taxonomy_csv', required=True,

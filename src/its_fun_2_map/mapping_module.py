@@ -12,6 +12,7 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from .its_fun_tools import load_name_ids, cleanup_temp_dir, log_and_print
 from seqpy_tools import repair_reads, setup_logging
+from . import __version__
 
 #### Date: 2025-08-04
 #### Author: Maria Kamouyiaros & Dan Parsons (@ NHMUK)
@@ -557,6 +558,7 @@ def build_parser():
         description="Map merged reads to per-sample references",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("--input_dir", required=True, help="Directory with FASTQ files")
     parser.add_argument("--ref_dir", required=True, help="Directory with per-sample reference FASTAs")
     parser.add_argument("--output_dir", required=True, help="Directory for outputs")

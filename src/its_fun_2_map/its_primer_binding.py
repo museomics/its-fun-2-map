@@ -9,7 +9,6 @@ ITS2 region (ITS3->ITS4). ITS3 primer is a reverse compliment of ITS2 (see White
 Custom primer pairs and target regions can be specified via TSV files.
 
 Author: D. Parsons (NHMUK) & M. KAMOUYIAROS (NHMUK)
-Version: 3.0.1
 """
 
 import os
@@ -21,6 +20,7 @@ from pathlib import Path
 from datetime import datetime
 from collections import defaultdict
 from seqpy_tools import setup_logging
+from . import __version__
 
 # ITS primer sequences from White et al. 1990
 DEFAULT_PRIMERS = {
@@ -231,6 +231,7 @@ Advanced usage with custom primers and regions:
     python its_primer_binding.py --input /path/to/fastas --output /path/to/results --primers_tsv primers.tsv --regions_tsv regions.tsv --tracking_sheet samples.csv
         """
     )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
 
     parser.add_argument(
         '-i', '--input',

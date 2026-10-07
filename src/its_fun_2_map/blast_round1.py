@@ -9,6 +9,7 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from .its_fun_tools import load_name_ids, blast_task
 from seqpy_tools import xlsx2csv, setup_logging
+from . import __version__
 
 ### Author: Maria Kamouyiaros & Dan Parsons (NHMUK)
 
@@ -60,6 +61,7 @@ def run_blast_pipeline(database_file, makeblastdb, query_dir, output_dir, prefix
 
 def build_parser():
     parser = argparse.ArgumentParser(description="Run BLAST for all scaffolds.fasta matches per genome ID.")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("--database_file", required=True, help="Database file")
     parser.add_argument("--makeblastdb", action="store_true", help="Create BLAST DB from --database_file")
     parser.add_argument("--query_dir", required=True, help="Directory containing query FASTA files")

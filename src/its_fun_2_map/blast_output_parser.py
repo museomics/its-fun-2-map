@@ -52,6 +52,7 @@ from collections import defaultdict
 from datetime import datetime
 from seqpy_tools import setup_logging
 from .its_fun_tools import log_and_print    
+from . import __version__
 
 
 def count_contigs_in_assembly(assembly_dir, sample_id):
@@ -933,6 +934,7 @@ def update_summary_with_contig_paths(output_dir, summary_csv='taxonomy_validatio
     
 def main(argv=None):
     parser = argparse.ArgumentParser(description='Process BLAST TSV files to extract top hits per query')
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument('--input_dir', required=True, help='Directory containing BLAST TSV files (required)')
     parser.add_argument('--taxonomy_csv', required=True,
                        help='CSV file with ID and taxonomic hierarchy columns (required)')

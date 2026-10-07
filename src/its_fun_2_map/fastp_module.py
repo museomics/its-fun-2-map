@@ -16,6 +16,7 @@ from rpy2.robjects import r
 from rpy2.robjects.conversion import localconverter
 from rpy2.robjects import pandas2ri, default_converter
 from seqpy_tools import clean_and_tar, run_command, xlsx2csv, setup_logging
+from . import __version__
 
 # fastp flags that this module sets itself. Passing any of these via
 # --fastp_extra_args would place a duplicate on the fastp command line, so they
@@ -498,6 +499,7 @@ def run(args):
 
 def build_parser():
     parser = argparse.ArgumentParser(description="Pre-process and process raw read data using fastp.")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("--input_dir", type=str, required=False, help="Path to input directory containing FASTQ files. Required when tracking sheet doesn't have forward/reverse columns, or when not using a tracking sheet.")
     parser.add_argument("--output_dir", type=str, required=True, help="Path to output directory.")
     parser.add_argument("--prefix", required=False, help="Prefix to use to find specific files in the input directory.")
