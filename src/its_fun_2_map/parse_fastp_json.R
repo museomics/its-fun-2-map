@@ -1,4 +1,3 @@
-if (!require("jsonlite")) install.packages("jsonlite")
 library(jsonlite)
 
 json_parse <- function(json_paths){  
