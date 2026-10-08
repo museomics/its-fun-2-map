@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 import its_fun_2_map
+from conftest import CLEAN_ENV
 
 COMMANDS = sorted(
     ep.name
@@ -21,17 +22,13 @@ COMMANDS = sorted(
 
 
 def run_command(name, *args):
-    # Console scripts are installed next to the running interpreter. Run each
-    # one with that interpreter rather than via its shebang line, so the test
-    # always uses the environment the package was installed into.
-    script = Path(sys.executable).parent / name
-    result = subprocess.run(
-        [sys.executable, str(script), *args], capture_output=True, text=True, timeout=120
+    # Console scripts are installed next to the running interpreter. Use the
+    # environment from before rpy2 started R (see conftest.CLEAN_ENV), as a
+    # user's shell would have.
+    executable = Path(sys.executable).parent / name
+    return subprocess.run(
+        [str(executable), *args], capture_output=True, text=True, timeout=120, env=CLEAN_ENV
     )
-    if result.returncode != 0:
-        shebang = script.read_text().splitlines()[0] if script.is_file() else "<missing>"
-        result.stderr = f"[{script} shebang: {shebang}]\n{result.stderr}"
-    return result
 
 
 def test_all_commands_are_registered():

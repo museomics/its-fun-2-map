@@ -5,8 +5,17 @@ no external data files, network access or bioinformatics tools.
 """
 
 import logging
+import os
 
 import pytest
+
+# Environment as it was before any test module imports rpy2. Starting the
+# embedded R rewrites LD_LIBRARY_PATH to R's library dirs (which include
+# /usr/lib/x86_64-linux-gnu), so a Python launched afterwards can load the
+# system libpython instead of its own and fail to find installed packages.
+# conftest.py is imported before test modules are collected, so this copy is
+# untouched; subprocesses in the tests should use it.
+CLEAN_ENV = os.environ.copy()
 
 
 @pytest.fixture
