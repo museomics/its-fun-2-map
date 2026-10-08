@@ -40,10 +40,13 @@ jobs:
       - name: Install R packages
         run: Rscript -e 'install.packages("jsonlite")'
 
+      # A regular (non-editable) install, so the tests run against the package
+      # exactly as users get it, including the bundled R scripts. The src/
+      # layout means the tests import the installed copy, not the checkout.
       - name: Install package
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e ".[dev]"
+          python -m pip install ".[dev]"
           python -m pip check
 
       - name: Run tests
