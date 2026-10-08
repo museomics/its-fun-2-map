@@ -1,9 +1,12 @@
 its_outcome <- function(df){
 
-    df$decision_description <- NA
-    df$Final_outcome <- NA
-    df$Final_contig_desc <- NA
-    df$Final_contig <- NA
+    # Create the output columns as character so they stay character even if
+    # no row matches a scenario. A bare NA is logical, and an all-NA logical
+    # column comes back through rpy2 as integers (-2147483648), not strings.
+    df$decision_description <- NA_character_
+    df$Final_outcome <- NA_character_
+    df$Final_contig_desc <- NA_character_
+    df$Final_contig <- NA_character_
     
     ### Scenario 1,3 & 4
     s1 <- which(df$blast_its2_correct_taxonomy    == "PASS" & 

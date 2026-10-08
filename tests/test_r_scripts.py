@@ -138,6 +138,18 @@ def run_its_outcome(rows):
     return pd.DataFrame(result)
 
 
+# R's NA arrives from rpy2 as an NA_character_ object that pandas does not see
+# as missing; rename_fastas turns these strings into pd.NA, so treat them alike.
+R_NA_STRINGS = {"NA", "NA_character_", "NA_real_", "NA_integer_", "NA_logical_"}
+
+
+def is_missing(value):
+    return pd.isna(value) or str(value) in R_NA_STRINGS
+
+
+OUTPUT_COLUMNS = ["decision_description", "Final_outcome", "Final_contig_desc", "Final_contig"]
+
+
 def test_its_outcome_decision_table():
     paths = {
         "blast_round1_contig_path": "round1.fa",
@@ -155,8 +167,7 @@ def test_its_outcome_decision_table():
         assert row["decision_description"] == description, sid
         assert row["Final_outcome"] == outcome, sid
         if contig is None:
-            # R's NA comes back as an rpy2 NA object, not a pandas NA (see below)
-            assert row["Final_contig"] not in set(paths.values()), sid
+            assert is_missing(row["Final_contig"]), sid
         else:
             assert row["Final_contig"] == contig, sid
 
@@ -184,14 +195,22 @@ def test_rename_fastas_with_passing_and_failed_samples(tmp_path, logger):
     assert not any((tmp_path / "out" / "manual_verification").iterdir())
 
 
-@pytest.mark.xfail(
-    raises=TypeError,
-    strict=False,
-    reason="Known issue: when every sample fails, R returns Final_contig as an "
-           "all-NA column, which rpy2 converts to integers (-2147483648) rather than "
-           "strings. rename_fastas only normalises NA in string columns, so it "
-           "passes the integer to Path() and raises TypeError.",
-)
+def test_output_columns_are_text_when_every_sample_fails():
+    # Regression test: when no row matched a scenario that sets a value, these
+    # columns used to stay logical in R and came back as -2147483648 integers
+    rows = [
+        {"ID": "NHM001", **SCENARIOS["s19_round1_fail"][0]},
+        {"ID": "NHM002", **SCENARIOS["s20_failed_contig"][0]},
+    ]
+    result = run_its_outcome(rows)
+
+    for column in OUTPUT_COLUMNS:
+        assert not pd.api.types.is_integer_dtype(result[column]), column
+    assert all(is_missing(v) for v in result["Final_contig"])
+    assert all(is_missing(v) for v in result["Final_contig_desc"])
+    assert list(result["Final_outcome"]) == ["FAIL", "FAIL"]
+
+
 def test_rename_fastas_when_every_sample_fails(tmp_path, logger):
     from its_fun_2_map.its_a_summary_compiler import rename_fastas
 
@@ -201,6 +220,8 @@ def test_rename_fastas_when_every_sample_fails(tmp_path, logger):
     ]
     result = run_its_outcome(rows)
 
+    # Used to raise TypeError by passing an integer NA to Path()
     rename_fastas(result, "ID", tmp_path / "out", logger)
 
     assert not any((tmp_path / "out" / "pass_fastas").iterdir())
+    assert not any((tmp_path / "out" / "manual_verification").iterdir())
