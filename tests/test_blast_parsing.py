@@ -1,7 +1,5 @@
 """Tests for the BLAST round 1 and round 2 parser helpers."""
 
-import logging
-
 import pandas as pd
 import pytest
 
@@ -14,15 +12,6 @@ STANDARD_COLUMNS = [
 # UNITE-style subject ID: the taxonomy string is the last |-separated field
 SSEQID = "Fusarium_oxysporum|KX123|SH1|reps|k__Fungi;p__Ascomycota;c__Sordariomycetes;f__Nectriaceae;g__Fusarium;s__Fusarium_oxysporum"
 HIT_ROW = "\t".join(["contig1", SSEQID, "99.5", "500", "2", "0", "1", "500", "1", "500", "1e-50", "900"])
-
-
-@pytest.fixture(autouse=True)
-def round1_logger(monkeypatch):
-    # blast_round1_parser's helpers log through a module-level `logger` that
-    # only run() creates (via `global logger`), so set one for direct calls.
-    monkeypatch.setattr(
-        blast_round1_parser, "logger", logging.getLogger("its_fun_2_map.tests"), raising=False
-    )
 
 
 @pytest.mark.parametrize("parser", [blast_round1_parser, blast_output_parser])

@@ -11,6 +11,9 @@ from datetime import datetime
 from seqpy_tools import setup_logging
 from . import __version__
 
+# Records propagate to the root logger, which run() configures via setup_logging
+logger = logging.getLogger(__name__)
+
 # BLAST output parser v3.0.0
 # Processes BLAST TSV files (outfmt 6) to extract best candidate contig based on blast results.
 # Contigs are filtered based on minimum length and percent identity, as well as e-value cutoff.
@@ -696,8 +699,7 @@ def run(args):
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         args.log_file = f'blast_round1_processing_{timestamp}.log'
 
-    global logger
-    logger = setup_logging(log_file=args.log_file)
+    setup_logging(log_file=args.log_file)
 
     # Load taxonomy columns from input CSV to be used in mapping to blast output files
     # output of load_taxonomy_mapping is a dictionary of {ID: {'family': family,
