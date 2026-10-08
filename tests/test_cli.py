@@ -21,11 +21,17 @@ COMMANDS = sorted(
 
 
 def run_command(name, *args):
-    # Console scripts are installed next to the running interpreter
-    executable = Path(sys.executable).parent / name
-    return subprocess.run(
-        [str(executable), *args], capture_output=True, text=True, timeout=120
+    # Console scripts are installed next to the running interpreter. Run each
+    # one with that interpreter rather than via its shebang line, so the test
+    # always uses the environment the package was installed into.
+    script = Path(sys.executable).parent / name
+    result = subprocess.run(
+        [sys.executable, str(script), *args], capture_output=True, text=True, timeout=120
     )
+    if result.returncode != 0:
+        shebang = script.read_text().splitlines()[0] if script.is_file() else "<missing>"
+        result.stderr = f"[{script} shebang: {shebang}]\n{result.stderr}"
+    return result
 
 
 def test_all_commands_are_registered():
