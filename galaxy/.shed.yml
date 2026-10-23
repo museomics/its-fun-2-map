@@ -1,0 +1,14 @@
+name: its_fun_2_map
+owner: rvosa
+description: Extract and validate fungal ITS barcodes from museum specimen genome skims
+long_description: |
+  End-to-end pipeline for low-coverage genome skims of fungarium and herbarium
+  specimens: QC, UNITE pseudo-reference baiting, SPAdes assembly, two rounds of
+  BLAST-based taxonomic validation, primer-based ITS extraction and a final
+  per-specimen decision with submission-ready FASTAs.
+homepage_url: https://github.com/museomics/its-fun-2-map
+remote_repository_url: https://github.com/bge-barcoding/its-fun-2-map/tree/main/galaxy
+type: unrestricted
+categories:
+  - Sequence Analysis
+  - Assembly

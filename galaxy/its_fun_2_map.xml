@@ -1,0 +1,472 @@
+<tool id="its_fun_2_map" name="ITS-FUN-2-MAP" version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@" profile="23.0">
+    <description>extract and validate fungal ITS barcodes from museum genome skims</description>
+    <macros>
+        <token name="@TOOL_VERSION@">1.0.0</token>
+        <token name="@VERSION_SUFFIX@">0</token>
+    </macros>
+    <edam_topics>
+        <edam_topic>topic_0637</edam_topic>
+        <edam_topic>topic_3174</edam_topic>
+    </edam_topics>
+    <edam_operations>
+        <edam_operation>operation_3192</edam_operation>
+        <edam_operation>operation_0525</edam_operation>
+        <edam_operation>operation_3460</edam_operation>
+    </edam_operations>
+    <requirements>
+        <requirement type="package" version="@TOOL_VERSION@">its-fun-2-map</requirement>
+    </requirements>
+    <version_command>itsfun-qc --version</version_command>
+    <command detect_errors="exit_code"><![CDATA[
+## ---------------------------------------------------------------------------
+## Working layout. Directory and file names mirror run_pipeline.sh exactly:
+## itsfun-summary discovers its inputs by name (**/blast_*summary.csv etc.).
+## ---------------------------------------------------------------------------
+mkdir -p reads db
+    out/00_logs
+    out/01_fastp_processed
+    out/02_UNITEd
+    out/03_mapped_reads
+    out/04_assemblies
+    out/05_blast_round1
+    out/05a_blast_parsed1
+    out/06_blast_round2a-ITS2
+    out/06a_blast_parsed2a-ITS2
+    out/07_blast_round2b-ITS1
+    out/07a_blast_parsed2b-ITS1
+    out/08_its_primer_extraction &&
+
+## Stage reads under neutral names; the tracking sheet carries the mapping
+## from sample ID to file, so filenames never need to match IDs.
+#for $i, $pair in enumerate($reads):
+    #set $ext = 'fastq.gz' if $pair.forward.ext.endswith('.gz') else 'fastq'
+    ln -s '$pair.forward' 'reads/r${i}_R1.${ext}' &&
+    ln -s '$pair.reverse' 'reads/r${i}_R2.${ext}' &&
+#end for
+
+## Reference databases: symlink into a writable directory so makeblastdb
+## can write its index files next to the FASTA.
+ln -s '$databases.unite_full' db/unite_full.fasta &&
+ln -s '$databases.unite_general' db/unite_general.fasta &&
+ln -s '$databases.uchime_its2' db/uchime_its2.fasta &&
+ln -s '$databases.uchime_its1' db/uchime_its1.fasta &&
+
+## Build a clean CSV tracking sheet with forward/reverse paths injected.
+python '$__tool_directory__/prepare_sheet.py'
+    '$tracking_sheet'
+    '$tracking_sheet.ext'
+    $sheet_index
+    '$column_name'
+    '$pairs_tsv'
+    tracking.csv &&
+
+#if $taxonomy.source == 'ncbi':
+    itsfun-lineage
+        --input_csv tracking.csv
+        --output_csv tracking_lineage.csv
+        --email '$__user_email__'
+        --taxcolumn '$taxid_column'
+        --log_file out/00_logs/pull_ncbi_lineage.log &&
+    test -s tracking_lineage.csv &&
+    #set $sheet = 'tracking_lineage.csv'
+#else:
+    #set $sheet = 'tracking.csv'
+#end if
+
+## Step 1: quality control
+itsfun-qc
+    --output_dir out/01_fastp_processed
+    --tracking_sheet $sheet
+    --column_name '$column_name'
+    --threads \${GALAXY_SLOTS:-4}
+    --fastp_threads 1
+    --qualified_quality_phred $qc.qualified_quality_phred
+    --log_file out/00_logs/fastp.log &&
+
+## Step 2: pseudo-reference retrieval from UNITE
+itsfun-refs
+    --tracking_sheet $sheet
+    --unite_db db/unite_full.fasta
+    --output out/02_UNITEd
+    --email '$__user_email__'
+    --id_header '$column_name'
+    --taxid_header '$taxid_column'
+    --tax_rank $refs.tax_rank
+    #if $refs.selection.mode == 'number':
+        --number $refs.selection.number
+        #if $refs.selection.traverse != 'none':
+            --traverse $refs.selection.traverse
+        #end if
+        $refs.selection.diversity
+    #else:
+        --all
+    #end if
+    --summary_csv UNITEd_summary.csv
+    --log_file out/00_logs/UNITEd.log &&
+
+## Step 3: read mapping and baiting
+itsfun-map
+    --input_dir out/01_fastp_processed
+    --ref_dir out/02_UNITEd
+    --aligner $mapping.aligner
+    --output_dir out/03_mapped_reads
+    --tracking_sheet $sheet
+    --column_name '$column_name'
+    --threads \${GALAXY_SLOTS:-4}
+    --bwa_threads 1
+    --log_file out/00_logs/mapping.log &&
+
+## Step 4: contig assembly
+itsfun-assemble
+    --merged_dir out/03_mapped_reads
+    --unmerged_dir out/01_fastp_processed
+    --output_dir out/04_assemblies
+    --threads \${GALAXY_SLOTS:-4}
+    --k '$assembly.kmers'
+    --summary_csv out/04_assemblies/assembly_summary.csv
+    --log_file out/00_logs/assembly.log &&
+
+## Step 5: BLASTn round 1 against the UNITE general release
+itsfun-blast1
+    --query_dir out/04_assemblies
+    --database_file db/unite_general.fasta
+    --makeblastdb
+    --output_dir out/05_blast_round1
+    --tracking_sheet $sheet
+    --column_name '$column_name'
+    --max_workers \${GALAXY_SLOTS:-4}
+    --evalue $blast.evalue
+    --log_file out/00_logs/blast_round1.log &&
+
+## Step 5.5: round 1 parsing and taxonomic validation
+itsfun-blast1-parse
+    --input_dir out/05_blast_round1
+    --output_dir out/05a_blast_parsed1
+    --taxonomy_csv $sheet
+    --id_column '$column_name'
+    --min_len $blast.min_len
+    --min_pident $blast.min_pident
+    --evalue_cutoff $blast.evalue_cutoff
+    --assembly_dir out/04_assemblies
+    $blast.allow_all
+    --log_file out/00_logs/parse_round1.log &&
+
+## Step 6: BLASTn round 2a against UCHIME ITS2
+itsfun-blast2
+    --query_dir out/04_assemblies
+    --blast_dir out/05_blast_round1
+    --database_file db/uchime_its2.fasta
+    --makeblastdb
+    --output_dir out/06_blast_round2a-ITS2
+    --tracking_sheet $sheet
+    --column_name '$column_name'
+    --max_workers \${GALAXY_SLOTS:-4}
+    --evalue $blast.evalue
+    --log_file out/00_logs/blast_round2a.log &&
+
+## Step 6.5: ITS2 parsing and validation
+itsfun-blast-parse
+    --input_dir out/06_blast_round2a-ITS2
+    --output_dir out/06a_blast_parsed2a-ITS2
+    --min_len $blast.min_len
+    --min_pident $blast.min_pident
+    --taxonomy_csv $sheet
+    --assembly_dir out/04_assemblies
+    --id_column '$column_name'
+    --summary_csv out/06a_blast_parsed2a-ITS2/blast_parser_its2_summary.csv
+    --log_file out/00_logs/parse_round2a.log &&
+
+## Step 7: BLASTn round 2b against UCHIME ITS1
+itsfun-blast2
+    --query_dir out/04_assemblies
+    --blast_dir out/05_blast_round1
+    --database_file db/uchime_its1.fasta
+    --makeblastdb
+    --output_dir out/07_blast_round2b-ITS1
+    --tracking_sheet $sheet
+    --column_name '$column_name'
+    --max_workers \${GALAXY_SLOTS:-4}
+    --evalue $blast.evalue
+    --log_file out/00_logs/blast_round2b.log &&
+
+## Step 7.5: ITS1 parsing and validation
+itsfun-blast-parse
+    --input_dir out/07_blast_round2b-ITS1
+    --output_dir out/07a_blast_parsed2b-ITS1
+    --min_len $blast.min_len
+    --min_pident $blast.min_pident
+    --taxonomy_csv $sheet
+    --assembly_dir out/04_assemblies
+    --id_column '$column_name'
+    --summary_csv out/07a_blast_parsed2b-ITS1/blast_parser_its1_summary.csv
+    --log_file out/00_logs/parse_round2b.log &&
+
+## Step 8: primer binding and ITS extraction
+itsfun-extract
+    --input out/06a_blast_parsed2a-ITS2
+    --tracking_sheet $sheet
+    --column_name '$column_name'
+    --output out/08_its_primer_extraction
+    #if $primers.source == 'custom':
+        --primers_tsv '$primers.primers_tsv'
+        --regions_tsv '$primers.regions_tsv'
+    #end if
+    --log_file out/00_logs/primer_binding.log &&
+
+## Step 9: summary, decision making and final FASTAs
+itsfun-summary out
+    -o merged_summary.csv
+    --log out/00_logs/merge_outputs.log
+    --delim '$summary.delim'
+    #if $summary.naming_tsv:
+        --naming_tsv '$summary.naming_tsv'
+    #end if
+
+#if $extra_outputs and 'summaries' in $extra_outputs:
+    && mkdir -p step_summaries
+    && find out -name '*_summary.csv' -not -path 'out/final_results_dir/*' -exec cp {} step_summaries/ \;
+    && if [ -f out/08_its_primer_extraction/summary_report.txt ]; then cp out/08_its_primer_extraction/summary_report.txt step_summaries/; fi
+#end if
+#if $extra_outputs and 'scaffolds' in $extra_outputs:
+    && mkdir -p scaffolds_out
+    && for d in out/04_assemblies/*.spades.out; do
+           if [ -s "\$d/scaffolds.fasta" ]; then cp "\$d/scaffolds.fasta" "scaffolds_out/\$(basename "\$d" .spades.out).fasta"; fi;
+       done
+#end if
+    ]]></command>
+    <configfiles>
+        <configfile name="pairs_tsv"><![CDATA[#for $i, $pair in enumerate($reads):
+#set $ext = 'fastq.gz' if $pair.forward.ext.endswith('.gz') else 'fastq'
+${pair.name}	reads/r${i}_R1.${ext}	reads/r${i}_R2.${ext}
+#end for
+]]></configfile>
+    </configfiles>
+    <inputs>
+        <param name="reads" type="data_collection" collection_type="list:paired" format="fastqsanger,fastqsanger.gz" label="Paired-end genome skim reads" help="One pair per specimen. Each element identifier must match a sample ID in the tracking sheet."/>
+        <param name="tracking_sheet" type="data" format="csv,tabular,xlsx" label="Tracking sheet" help="One row per specimen, with a sample ID column and an NCBI taxid column. Any forward/reverse file path columns are ignored."/>
+        <param name="column_name" type="text" value="ID" label="Sample ID column">
+            <validator type="regex" message="Use letters, digits and underscores only">^\w+$</validator>
+        </param>
+        <param name="taxid_column" type="text" value="taxid" label="NCBI taxid column">
+            <validator type="regex" message="Use letters, digits and underscores only">^\w+$</validator>
+        </param>
+        <param name="sheet_index" type="integer" value="0" min="0" label="Sheet index (XLSX only)" help="0 is the first sheet. Ignored for CSV and tabular input."/>
+        <conditional name="taxonomy">
+            <param name="source" type="select" label="Taxonomic lineage for validation">
+                <option value="sheet" selected="true">Tracking sheet already has Kingdom to Species columns</option>
+                <option value="ncbi">Look up lineages from the taxids at NCBI</option>
+            </param>
+            <when value="sheet"/>
+            <when value="ncbi"/>
+        </conditional>
+        <section name="databases" title="UNITE reference databases" expanded="true">
+            <param name="unite_full" type="data" format="fasta" label="UNITE full (UNITE+INSD)" help="Used to retrieve per-specimen pseudo-references (step 2)."/>
+            <param name="unite_general" type="data" format="fasta" label="UNITE general release (sh_general_release_dynamic)" help="BLAST round 1 (step 5)."/>
+            <param name="uchime_its2" type="data" format="fasta" label="UNITE UCHIME ITS2 reference" help="BLAST round 2a (step 6)."/>
+            <param name="uchime_its1" type="data" format="fasta" label="UNITE UCHIME ITS1 reference" help="BLAST round 2b (step 7)."/>
+        </section>
+        <section name="qc" title="Quality control (fastp)">
+            <param argument="--qualified_quality_phred" type="integer" value="30" min="0" max="60" label="Phred score below which a base counts as unqualified" help="fastp's own default is 15."/>
+        </section>
+        <section name="refs" title="Pseudo-reference retrieval">
+            <param argument="--tax_rank" type="select" label="Taxonomic rank to search">
+                <option value="species">species</option>
+                <option value="genus" selected="true">genus</option>
+                <option value="family">family</option>
+                <option value="order">order</option>
+                <option value="class">class</option>
+                <option value="phylum">phylum</option>
+            </param>
+            <conditional name="selection">
+                <param name="mode" type="select" label="Sequences to retrieve per specimen">
+                    <option value="number" selected="true">A fixed number</option>
+                    <option value="all">All matching sequences</option>
+                </param>
+                <when value="number">
+                    <param argument="--number" type="integer" value="20" min="1" label="Number of reference sequences"/>
+                    <param argument="--traverse" type="select" label="Move up to this rank if too few sequences are found">
+                        <option value="none">Do not traverse</option>
+                        <option value="genus">genus</option>
+                        <option value="family" selected="true">family</option>
+                        <option value="order">order</option>
+                        <option value="class">class</option>
+                        <option value="phylum">phylum</option>
+                        <option value="kingdom">kingdom</option>
+                    </param>
+                    <param argument="--diversity" type="boolean" truevalue="--diversity" falsevalue="" checked="true" label="Spread sequences across child taxa" help="Prioritises target species matches (up to 25% of the total), then distributes the rest across other child taxa."/>
+                </when>
+                <when value="all"/>
+            </conditional>
+        </section>
+        <section name="mapping" title="Read mapping">
+            <param argument="--aligner" type="select" label="BWA algorithm">
+                <option value="bwa-mem" selected="true">BWA-MEM (modern and historical DNA)</option>
+                <option value="bwa-aln">BWA-ALN with ancient DNA settings</option>
+            </param>
+        </section>
+        <section name="assembly" title="Assembly (SPAdes)">
+            <param name="kmers" type="text" value="21,33,55" label="k-mer sizes" help="Comma-separated odd integers for the initial assembly attempt. The fallback attempts always use k=21.">
+                <validator type="regex" message="Comma-separated integers, e.g. 21,33,55">^\d+(,\d+)*$</validator>
+            </param>
+        </section>
+        <section name="blast" title="BLAST and validation">
+            <param argument="--evalue" type="float" value="1e-5" min="0" label="BLASTn e-value threshold"/>
+            <param argument="--min_len" type="integer" value="100" min="1" label="Minimum alignment length"/>
+            <param argument="--min_pident" type="integer" value="85" min="0" max="100" label="Minimum percent identity"/>
+            <param argument="--evalue_cutoff" type="float" value="1e-5" min="0" label="E-value cutoff when parsing round 1 hits"/>
+            <param argument="--allow_all" type="boolean" truevalue="--allow_all" falsevalue="" checked="true" label="Let multiple matching contigs pass round 1" help="As in the reference run_pipeline.sh. Without this, a specimen with more than one matching contig fails round 1."/>
+        </section>
+        <conditional name="primers">
+            <param name="source" type="select" label="ITS primers">
+                <option value="default" selected="true">White et al. (1990) ITS1 to ITS4</option>
+                <option value="custom">Custom primers and regions</option>
+            </param>
+            <when value="default"/>
+            <when value="custom">
+                <param name="primers_tsv" type="data" format="tabular" label="Primers" help="Tab-separated with a header row: name, sequence."/>
+                <param name="regions_tsv" type="data" format="tabular" label="Regions" help="Tab-separated with a header row: region, forward, reverse. Primer names must match the primers table."/>
+            </when>
+        </conditional>
+        <section name="summary" title="Final output">
+            <param argument="--naming_tsv" type="data" format="tabular" optional="true" label="Renaming table" help="Optional. Two tab-separated columns without a header: sample ID and new name for the output FASTA."/>
+            <param argument="--delim" type="select" label="Delimiter in output FASTA headers">
+                <option value="|" selected="true">Pipe (as expected by BOLD)</option>
+                <option value="_">Underscore</option>
+            </param>
+        </section>
+        <param name="extra_outputs" type="select" multiple="true" optional="true" display="checkboxes" label="Additional outputs">
+            <option value="extracted">Extracted ITS1, ITS2 and complete ITS sequences</option>
+            <option value="summaries">Per-step summary tables</option>
+            <option value="scaffolds">Assembled scaffolds</option>
+            <option value="logs">Per-step log files</option>
+        </param>
+    </inputs>
+    <outputs>
+        <data name="merged_summary" format="csv" from_work_dir="out/final_results_dir/merged_summary.csv" label="${tool.name} on ${on_string}: summary"/>
+        <collection name="pass_fastas" type="list" label="${tool.name} on ${on_string}: passed barcodes">
+            <discover_datasets pattern="(?P&lt;designation&gt;.+)\.fasta" directory="out/final_results_dir/pass_fastas" format="fasta"/>
+        </collection>
+        <collection name="manual_verification" type="list" label="${tool.name} on ${on_string}: needs manual verification">
+            <discover_datasets pattern="(?P&lt;designation&gt;.+)_manual_verification_needed\.fasta" directory="out/final_results_dir/manual_verification" format="fasta"/>
+        </collection>
+        <collection name="its_complete" type="list" label="${tool.name} on ${on_string}: complete ITS">
+            <discover_datasets pattern="(?P&lt;designation&gt;.+)_ITS_complete\.fa" directory="out/08_its_primer_extraction/ITS_complete" format="fasta"/>
+            <filter>extra_outputs and 'extracted' in extra_outputs</filter>
+        </collection>
+        <collection name="its1" type="list" label="${tool.name} on ${on_string}: ITS1">
+            <discover_datasets pattern="(?P&lt;designation&gt;.+)_ITS1\.fa" directory="out/08_its_primer_extraction/ITS1" format="fasta"/>
+            <filter>extra_outputs and 'extracted' in extra_outputs</filter>
+        </collection>
+        <collection name="its2" type="list" label="${tool.name} on ${on_string}: ITS2">
+            <discover_datasets pattern="(?P&lt;designation&gt;.+)_ITS2\.fa" directory="out/08_its_primer_extraction/ITS2" format="fasta"/>
+            <filter>extra_outputs and 'extracted' in extra_outputs</filter>
+        </collection>
+        <collection name="step_summaries" type="list" label="${tool.name} on ${on_string}: step summaries">
+            <discover_datasets pattern="(?P&lt;designation&gt;.+)\.(?P&lt;ext&gt;csv|txt)" directory="step_summaries"/>
+            <filter>extra_outputs and 'summaries' in extra_outputs</filter>
+        </collection>
+        <collection name="scaffolds" type="list" label="${tool.name} on ${on_string}: scaffolds">
+            <discover_datasets pattern="(?P&lt;designation&gt;.+)\.fasta" directory="scaffolds_out" format="fasta"/>
+            <filter>extra_outputs and 'scaffolds' in extra_outputs</filter>
+        </collection>
+        <collection name="logs" type="list" label="${tool.name} on ${on_string}: logs">
+            <discover_datasets pattern="(?P&lt;designation&gt;.+)\.log" directory="out/00_logs" format="txt"/>
+            <filter>extra_outputs and 'logs' in extra_outputs</filter>
+        </collection>
+    </outputs>
+    <tests>
+        <!-- Needs test-data built from one or two subsampled specimens and cut-down UNITE files; see the notes accompanying this wrapper. -->
+        <test expect_num_outputs="3">
+            <param name="reads">
+                <collection type="list:paired">
+                    <element name="SPEC01">
+                        <collection type="paired">
+                            <element name="forward" value="SPEC01_R1.fastq.gz" ftype="fastqsanger.gz"/>
+                            <element name="reverse" value="SPEC01_R2.fastq.gz" ftype="fastqsanger.gz"/>
+                        </collection>
+                    </element>
+                </collection>
+            </param>
+            <param name="tracking_sheet" value="tracking.csv" ftype="csv"/>
+            <section name="databases">
+                <param name="unite_full" value="unite_full_subset.fasta"/>
+                <param name="unite_general" value="unite_general_subset.fasta"/>
+                <param name="uchime_its2" value="uchime_its2_subset.fasta"/>
+                <param name="uchime_its1" value="uchime_its1_subset.fasta"/>
+            </section>
+            <output name="merged_summary">
+                <assert_contents>
+                    <has_text text="SPEC01"/>
+                    <has_text text="Final_outcome"/>
+                </assert_contents>
+            </output>
+        </test>
+    </tests>
+    <help><![CDATA[
+**What it does**
+
+ITS-FUN-2-MAP recovers fungal ITS barcodes from low-coverage genome skims of museum and herbarium specimens. It runs the complete pipeline in one job:
+
+1. Quality control, adapter trimming and read merging (fastp)
+2. Retrieval of taxonomically matched pseudo-references from UNITE, using each specimen's NCBI taxid
+3. Read baiting by mapping to those references (BWA-MEM, or BWA-ALN with ancient DNA settings)
+4. Assembly of the baited reads (SPAdes, with two fallback strategies)
+5. BLASTn of scaffolds against the UNITE general release, and validation against the expected taxonomy
+6. BLASTn of validated contigs against UCHIME ITS2 and ITS1 references, with a second round of validation
+7. ITS1, ITS2 and complete ITS extraction by primer binding (seqkit amplicon)
+8. A merged summary across all steps, a final decision per specimen, and renamed FASTAs ready for submission
+
+-----
+
+**Inputs**
+
+*Reads*: a list of paired collections of FASTQ files, one pair per specimen. **Each element identifier must exactly match a sample ID in the tracking sheet**, and may only contain letters, digits, dots, underscores and hyphens.
+
+Several steps match files to samples by substring, so the tool refuses to run if one sample ID occurs inside another (for example S1 and S10). Zero-padded IDs (S01, S10) avoid this.
+
+*Tracking sheet*: CSV, tab-separated or XLSX, one row per specimen. It needs:
+
+- a sample ID column (default ``ID``)
+- an NCBI taxid column (default ``taxid``)
+- for validation, the columns ``Kingdom``, ``Phylum``, ``Class``, ``Order``, ``Family``, ``Genus`` and ``Species``, unless you let the tool look lineages up at NCBI
+
+Rows without matching reads are skipped. Any ``forward``/``reverse`` file path columns are ignored, because Galaxy supplies the reads.
+
+*Reference databases*: four FASTA files from the UNITE repository (https://unite.ut.ee/repository.php): the full UNITE+INSD release, the general release (dynamic species hypotheses), and the UCHIME ITS2 and ITS1 reference datasets. BLAST indexes are built during the run.
+
+-----
+
+**Outputs**
+
+- *Summary*: one row per specimen with metrics from every step and the final outcome (``Final_outcome``, ``Final_contig_desc``, ``Final_contig``)
+- *Passed barcodes*: FASTA per specimen that passed all validation, with headers of the form ``<ID>|<region>``
+- *Needs manual verification*: FASTA per specimen where the evidence was ambiguous
+
+Optionally also the extracted ITS1, ITS2 and complete ITS sequences, the per-step summary tables, the assembled scaffolds and the per-step logs.
+
+-----
+
+**Notes**
+
+- The pseudo-reference step and the optional lineage lookup query NCBI Entrez using the email address of your Galaxy account. Jobs therefore need outbound internet access.
+- The defaults follow the authors' reference script ``run_pipeline.sh``.
+- Memory use is dominated by SPAdes. The authors report a run of 108 specimens in about 2.3 hours with 24 CPUs and 150 GB of memory.
+
+Source code: https://github.com/museomics/its-fun-2-map
+    ]]></help>
+    <citations>
+        <citation type="bibtex">@misc{its_fun_2_map,
+    author = {Kamouyiaros, M. and Parsons, D.},
+    title = {{ITS-FUN-2-MAP}: extraction and validation of fungal {ITS} barcodes from museum specimen genome skims},
+    publisher = {GitHub},
+    year = {2026},
+    url = {https://github.com/museomics/its-fun-2-map}
+}</citation>
+        <citation type="doi">10.1093/bioinformatics/bty560</citation>
+        <citation type="doi">10.1093/bioinformatics/btp324</citation>
+        <citation type="doi">10.1089/cmb.2012.0021</citation>
+        <citation type="doi">10.1186/1471-2105-10-421</citation>
+        <citation type="doi">10.1371/journal.pone.0163962</citation>
+        <citation type="doi">10.1093/nar/gkad1039</citation>
+    </citations>
+</tool>
