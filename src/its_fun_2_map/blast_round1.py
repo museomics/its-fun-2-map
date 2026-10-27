@@ -7,7 +7,7 @@ import pandas as pd
 import pathlib
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from .its_fun_tools import load_name_ids, blast_task
+from .its_fun_tools import load_name_ids, blast_task, ensure_blast_db
 from seqpy_tools import xlsx2csv, setup_logging
 from . import __version__
 
@@ -22,15 +22,14 @@ def run_blast_pipeline(database_file, makeblastdb, query_dir, output_dir, prefix
 
     logger = setup_logging(log_file=log_file)
 
-    if makeblastdb:
-        logger.info(f"[INFO] Creating BLAST DB for {database_file}")
-        subprocess.run(["makeblastdb", "-in", database_file, "-dbtype", "nucl"], check=True)
+    ensure_blast_db(database_file, logger, rebuild=makeblastdb)
 
     # Find only scaffolds.fasta in the immediate *.spades.out directories
     scaffold_paths = glob.glob(os.path.join(query_dir, "*.spades.out", "scaffolds.fasta"))
 
     tasks = []
     skipped_samples = []
+    failed = 0
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         for name_id in name_ids:
@@ -50,6 +49,7 @@ def run_blast_pipeline(database_file, makeblastdb, query_dir, output_dir, prefix
                 future.result()
             except Exception as e:
                 logger.error(f"[ERROR] Task failed: {e}")
+                failed += 1
 
     # Log summary of skipped samples
     if skipped_samples:
@@ -58,12 +58,15 @@ def run_blast_pipeline(database_file, makeblastdb, query_dir, output_dir, prefix
             logger.info(f"  - {sample}")
 
     logger.info(f"[DONE] All tasks complete. Processed {len(tasks)} samples, skipped {len(skipped_samples)} samples.")
+    if failed:
+        logger.error(f"[ERROR] {failed} BLAST task(s) failed; see the errors above")
+    return failed
 
 def build_parser():
     parser = argparse.ArgumentParser(description="Run BLAST for all scaffolds.fasta matches per genome ID.")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("--database_file", required=True, help="Database file")
-    parser.add_argument("--makeblastdb", action="store_true", help="Create BLAST DB from --database_file")
+    parser.add_argument("--makeblastdb", action="store_true", help="Rebuild the BLAST DB from --database_file even if one exists (it is created automatically when missing)")
     parser.add_argument("--query_dir", required=True, help="Directory containing query FASTA files")
     parser.add_argument("--output_dir", required=True, help="Directory to store BLAST output files")
     parser.add_argument("--tracking_sheet", required=True, help="Tracking spreadsheet with relevant metadata")
@@ -84,7 +87,7 @@ def main(argv=None):
     if not name_ids:
         raise ValueError(f"No valid mappings found in {args.tracking_sheet}")
 
-    run_blast_pipeline(
+    failed = run_blast_pipeline(
         database_file=args.database_file,
         makeblastdb=args.makeblastdb,
         query_dir=args.query_dir,
@@ -95,7 +98,7 @@ def main(argv=None):
         log_file=args.log_file,
         evalue=args.evalue,
     )
-    return 0
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

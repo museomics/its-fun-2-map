@@ -24,3 +24,4 @@ dependencies:
   - pip
   - pip:
       - seqpy-tools==0.1.2
+      - its-fun-2-map==1.0.0

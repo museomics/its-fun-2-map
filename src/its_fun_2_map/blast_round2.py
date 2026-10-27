@@ -9,7 +9,7 @@ import pandas as pd
 import argparse
 import sys
 from datetime import datetime
-from .its_fun_tools import load_name_ids, cleanup_temp_dir, blast_task
+from .its_fun_tools import load_name_ids, cleanup_temp_dir, blast_task, ensure_blast_db
 from seqpy_tools import xlsx2csv, setup_logging
 from . import __version__
 
@@ -41,9 +41,7 @@ def run_seqkit_and_blast(tracking_sheet, column_name, query_dir, blast_dir, data
     
     logger = setup_logging(log_file=log_file)
 
-    if makeblastdb:
-        logger.info(f"[INFO] Creating BLAST DB for {database_file}")
-        subprocess.run(["makeblastdb", "-in", database_file, "-dbtype", "nucl"], check=True)
+    ensure_blast_db(database_file, logger, rebuild=makeblastdb)
 
     # Find only scaffolds.fasta in the immediate *.spades.out directories
     scaffold_paths = glob.glob(os.path.join(query_dir, "*.spades.out", "scaffolds.fasta"))
@@ -51,6 +49,7 @@ def run_seqkit_and_blast(tracking_sheet, column_name, query_dir, blast_dir, data
 
 
     tasks = []
+    failed = 0
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         for name_id in name_ids:
             # Find scaffolds for this sample
@@ -110,11 +109,15 @@ def run_seqkit_and_blast(tracking_sheet, column_name, query_dir, blast_dir, data
             try:
                 future.result()
             except Exception as e:
-                logger.info(f"[ERROR] Task failed: {e}")
+                logger.error(f"[ERROR] Task failed: {e}")
+                failed += 1
 
     # Clean up tmp dir
     cleanup_temp_dir(tmp_fasta_dir)
     logger.info("[DONE] All tasks complete.")
+    if failed:
+        logger.error(f"[ERROR] {failed} BLAST task(s) failed; see the errors above")
+    return failed
 
 
 def build_parser():
@@ -126,7 +129,7 @@ def build_parser():
     parser.add_argument("--query_dir", required=True, help="Directory containing scaffolds.fasta files")
     parser.add_argument("--blast_dir", required=True, help="Directory containing BLAST TSV results")
     parser.add_argument("--database_file", required=True, help="Database file for BLAST")
-    parser.add_argument("--makeblastdb", action="store_true", help="Create BLAST DB from --database_file")
+    parser.add_argument("--makeblastdb", action="store_true", help="Rebuild the BLAST DB from --database_file even if one exists (it is created automatically when missing)")
     parser.add_argument("--output_dir", default="blast_results", help="Directory to store BLAST output files")
     parser.add_argument("--prefix", required=False, help="Optional prefix to add to output files")
     parser.add_argument("--max_workers", type=int, default=4, help="Maximum parallel workers")
@@ -139,7 +142,7 @@ def main(argv=None):
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    run_seqkit_and_blast(
+    failed = run_seqkit_and_blast(
         tracking_sheet=args.tracking_sheet,
         column_name=args.column_name,
         query_dir=args.query_dir,
@@ -153,7 +156,7 @@ def main(argv=None):
         evalue=args.evalue,
         sheet=args.sheet,
     )
-    return 0
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

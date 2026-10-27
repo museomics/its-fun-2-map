@@ -9,7 +9,7 @@ package does not pull in heavy optional dependencies such as rpy2.
 
 import logging
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 # Library-safe logging: adding a NullHandler means importing this package has no
 # logging side effects. Each module's main() calls setup_logging() to configure

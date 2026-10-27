@@ -2,6 +2,9 @@
 
 A pipeline for processing fungal genome skims from museum specimens. Includes quality control, reference mapping (as a read-baiting step), assembly, BLAST taxonomic assignment, primer-based ITS region extraction, and validation.
 
+![PyPI Version](https://img.shields.io/pypi/v/its-fun-2-map)
+
+
 ## Contents
 1. [Installation and quick start](#installation-and-quick-start)
 2. [Workflow](#workflow)
@@ -9,7 +12,8 @@ A pipeline for processing fungal genome skims from museum specimens. Includes qu
 4. [Pipeline Overview](#pipeline-overview)
 5. [Output Directory Structure](#output-directory-structure)
 6. [Dependencies](#dependencies)
-7. [Authors](#authors)
+7. [Benchmarking](#benchmarking)
+8. [Authors & Citation](#authors-and-citation)
 
 ## Installation and quick start
 Everything the pipeline needs (tools, R, Python and their packages) are installed by the conda environment in `its-fun-2-map.yaml`. The only things you need to fetch yourself are the reference databases.
@@ -35,6 +39,8 @@ pip install -e .
 - [UNITE General Release (sh_general_release_dynamic)](https://unite.ut.ee/repository.php#panel5a) - BLAST Round 1 (Step 5)
 - [UNITE UCHIME ITS2 reference dataset](https://unite.ut.ee/repository.php#panel7a) - BLAST Round 2a (Step 6)
 - [UNITE UCHIME ITS1 reference dataset](https://unite.ut.ee/repository.php#panel7a) - BLAST Round 2b (Step 7)
+
+The three BLAST databases are indexed automatically the first time they are used. `makeblastdb` writes the index files next to each FASTA, so those directories must be writable.
 
 **5. Check the install:**
 ```bash
@@ -259,7 +265,7 @@ Assembles mapped reads into contigs using SPAdes with a multi-stage fallback str
 Searches assembled scaffolds against the general UNITE database for initial taxonomic identification.
 
 **Process:**
-1. Optionally creates BLAST database from reference FASTA
+1. Creates the BLAST database from the reference FASTA if it is not already indexed (`--makeblastdb` forces a rebuild)
 2. Locates `scaffolds.fasta` files for each sample in assembly directories
 3. Runs BLASTn searches in parallel
 4. Outputs results in tabular format (outfmt 6)
@@ -326,7 +332,7 @@ Searches validated contigs against the UCHIME ITS2 reference database for region
 1. Reads BLAST Round 1 TSV results to identify validated contig IDs
 2. Extracts unique contig headers from each sample's Round 1 results
 3. Uses `seqkit grep` to extract matching scaffolds from assembly FASTA files
-4. Runs BLASTn against ITS2-specific UCHIME database
+4. Runs BLASTn against the ITS2-specific UCHIME database, indexing it first if needed
 5. Processes samples in parallel
 
 **Input:**
@@ -628,5 +634,10 @@ pulled in automatically as a library dependency of `samtools`.
  - `its_fun_2_map.its_fun_tools` - shared helpers, installed as part of the `its-fun-2-map` package. No `PYTHONPATH` fiddling and no need to run from the repository directory.
  - [seqpy-tools](https://github.com/museomics/seqpy_tools) 0.1.0 ([available via pip](https://pypi.org/project/seqpy-tools/)) - imported by every module in the pipeline
 
-## Authors
+## Benchmarking
+ITS-Fun-2-Map ran end-to-end on 108 low-coverage genome skims generated from fungarium specimens (collected between 1985-2018 and stored at the Royal Botanic Garden, Edinburgh) in 136.15 minutes on a SLURM-based HPC, with 150G of memory and 24 CPUs allocated.
+
+## Authors and Citation
 **M. Kamouyiaros & D. Parsons** @ the Natural History Museum, London (NHMUK)
+
+ITS-Fun-2-Map is published in [TBD] - please cite the paper if you use our pipeline in your work. Thanks!
