@@ -641,3 +641,4 @@ ITS-Fun-2-Map ran end-to-end on 108 low-coverage genome skims generated from fun
 **M. Kamouyiaros & D. Parsons** @ the Natural History Museum, London (NHMUK)
 
 ITS-Fun-2-Map is published in [TBD] - please cite the paper if you use our pipeline in your work. Thanks!
+
