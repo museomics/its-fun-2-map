@@ -40,6 +40,8 @@ pip install -e .
 - [UNITE UCHIME ITS2 reference dataset](https://unite.ut.ee/repository.php#panel7a) - BLAST Round 2a (Step 6)
 - [UNITE UCHIME ITS1 reference dataset](https://unite.ut.ee/repository.php#panel7a) - BLAST Round 2b (Step 7)
 
+The three BLAST databases are indexed automatically the first time they are used. `makeblastdb` writes the index files next to each FASTA, so those directories must be writable.
+
 **5. Check the install:**
 ```bash
 itsfun-qc --help
@@ -263,7 +265,7 @@ Assembles mapped reads into contigs using SPAdes with a multi-stage fallback str
 Searches assembled scaffolds against the general UNITE database for initial taxonomic identification.
 
 **Process:**
-1. Optionally creates BLAST database from reference FASTA
+1. Creates the BLAST database from the reference FASTA if it is not already indexed (`--makeblastdb` forces a rebuild)
 2. Locates `scaffolds.fasta` files for each sample in assembly directories
 3. Runs BLASTn searches in parallel
 4. Outputs results in tabular format (outfmt 6)
@@ -330,7 +332,7 @@ Searches validated contigs against the UCHIME ITS2 reference database for region
 1. Reads BLAST Round 1 TSV results to identify validated contig IDs
 2. Extracts unique contig headers from each sample's Round 1 results
 3. Uses `seqkit grep` to extract matching scaffolds from assembly FASTA files
-4. Runs BLASTn against ITS2-specific UCHIME database
+4. Runs BLASTn against the ITS2-specific UCHIME database, indexing it first if needed
 5. Processes samples in parallel
 
 **Input:**
@@ -639,3 +641,4 @@ ITS-Fun-2-Map ran end-to-end on 108 low-coverage genome skims generated from fun
 **M. Kamouyiaros & D. Parsons** @ the Natural History Museum, London (NHMUK)
 
 ITS-Fun-2-Map is published in [TBD] - please cite the paper if you use our pipeline in your work. Thanks!
+

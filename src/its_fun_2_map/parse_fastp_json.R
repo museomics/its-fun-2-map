@@ -32,7 +32,7 @@ json_parse <- function(json_paths){
 }
 
 json2csv <- function(json_dir, out_dir){
-  json_paths <- list.files(path = json_dir, pattern = ".json", full.names = T)
+  json_paths <- list.files(path = json_dir, pattern = "_(trim|merge)\\.json$", full.names = T)
   tables <- lapply(json_paths, json_parse)
   combined.df <- do.call(rbind , tables)
   

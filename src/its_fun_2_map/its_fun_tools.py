@@ -33,6 +33,24 @@ def blast_task(scaff_path, database_file, output_dir, name_id, prefix=None, eval
     ], check=True)
 
 
+def ensure_blast_db(database_file, logger, rebuild=False):
+    """
+    Make sure a nucleotide BLAST database exists for database_file.
+
+    makeblastdb runs when rebuild is True, or when blastdbcmd cannot open an
+    existing database. Index files are written next to the FASTA, so its
+    directory must be writable.
+    """
+    if not rebuild:
+        check = subprocess.run(["blastdbcmd", "-db", database_file, "-info"],
+                               capture_output=True, text=True)
+        if check.returncode == 0:
+            logger.info(f"[INFO] Using existing BLAST DB for {database_file}")
+            return
+        logger.info(f"[INFO] No BLAST DB found for {database_file}, creating one")
+    else:
+        logger.info(f"[INFO] Creating BLAST DB for {database_file}")
+    subprocess.run(["makeblastdb", "-in", database_file, "-dbtype", "nucl"], check=True)
 
 
 def normalise_taxon_name(name):

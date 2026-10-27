@@ -1,9 +1,11 @@
 """Tests for the shared helpers in its_fun_tools.
 
 get_ncbi_lineage is tested with Bio.Entrez faked out, so no request ever
-reaches NCBI and the retry back-off does not actually sleep.
+reaches NCBI and the retry back-off does not actually sleep. ensure_blast_db
+is tested with subprocess.run faked out, so no BLAST+ binaries are needed.
 """
 
+import subprocess
 import urllib.error
 
 import pytest
@@ -11,6 +13,7 @@ import pytest
 from its_fun_2_map import its_fun_tools
 from its_fun_2_map.its_fun_tools import (
     cleanup_temp_dir,
+    ensure_blast_db,
     get_ncbi_lineage,
     load_name_ids,
     normalise_taxon_name,
@@ -134,3 +137,47 @@ def test_lineage_gives_up_after_five_attempts(fake_entrez, logger):
 ])
 def test_normalise_taxon_name(name, expected):
     assert normalise_taxon_name(name) == expected
+
+
+@pytest.fixture
+def fake_run(monkeypatch):
+    """Replace subprocess.run with a recorder in which blastdbcmd exits with a
+    chosen code. Returns a function that installs the fake and returns the
+    list of programs run."""
+    calls = []
+
+    def install(blastdbcmd_returncode):
+        def run(cmd, **kwargs):
+            calls.append(cmd[0])
+            returncode = blastdbcmd_returncode if cmd[0] == "blastdbcmd" else 0
+            return subprocess.CompletedProcess(cmd, returncode, "", "")
+
+        monkeypatch.setattr(its_fun_tools.subprocess, "run", run)
+        return calls
+
+    return install
+
+
+def test_ensure_blast_db_reuses_existing_index(fake_run, logger):
+    calls = fake_run(0)
+
+    ensure_blast_db("db.fasta", logger)
+
+    assert calls == ["blastdbcmd"]
+
+
+def test_ensure_blast_db_builds_missing_index(fake_run, logger):
+    # blastdbcmd exits 2 when there is no index next to the FASTA
+    calls = fake_run(2)
+
+    ensure_blast_db("db.fasta", logger)
+
+    assert calls == ["blastdbcmd", "makeblastdb"]
+
+
+def test_ensure_blast_db_rebuild_skips_the_check(fake_run, logger):
+    calls = fake_run(0)
+
+    ensure_blast_db("db.fasta", logger, rebuild=True)
+
+    assert calls == ["makeblastdb"]
